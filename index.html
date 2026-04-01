@@ -190,7 +190,7 @@ body{max-width:980px;margin:0 auto;padding:1.5rem 1.25rem 6rem}
 <!-- ATTOM Key Setup -->
 <div class="api-panel" id="attomPanel" style="border-color:var(--bbr);margin-bottom:1rem">
   <h3 style="color:var(--blue)">🏠 ATTOM Data API key — live county property data</h3>
-  <p>Your ATTOM key pulls live owner, taxes, sqft, beds/baths, transfers and more automatically on every analysis. No extension needed.</p>
+  <p>Your ATTOM key auto-fills owner, taxes, beds/baths, sqft, year built, market value and last sale on every analysis. No extension, no copy-paste, no MyPlace browsing needed.</p>
   <div class="api-row">
     <input type="password" id="attomKeyIn" placeholder="Your ATTOM API key..." onkeydown="if(event.key==='Enter')saveAttomKey()"/>
     <button onclick="saveAttomKey()" style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:9px 16px;font-size:12px;font-weight:600;cursor:pointer">Save</button>
@@ -214,8 +214,8 @@ body{max-width:980px;margin:0 auto;padding:1.5rem 1.25rem 6rem}
 <!-- COUNTY DATA MANUAL INPUT PANEL -->
 <div id="countyPanel" class="card" style="border-color:var(--abr);margin-bottom:1rem">
   <div class="card-hdr">
-    <h3>🏛️ County data <span class="tag ta">Enter from MyPlace</span></h3>
-    <a href="https://myplace.cuyahogacounty.gov/" target="_blank" style="color:var(--acc);font-size:11px;font-family:var(--mono)">Open MyPlace ↗</a>
+    <h3>🏛️ County data <span class="tag tg">ATTOM auto-filled</span> <span class="tag ta">Add delinquency from MyPlace</span></h3>
+    <a href="https://myplace.cuyahogacounty.gov/" target="_blank" style="color:var(--acc);font-size:11px;font-family:var(--mono)">MyPlace — Taxes By Year ↗</a>
   </div>
   <!-- PASTE BOX -->
   <div style="margin-bottom:14px">
@@ -920,10 +920,13 @@ let attomKey = '';
 function loadKey() {
   const k = localStorage.getItem('cda_k') || localStorage.getItem('cuyahoga_deal_analyzer_key') || '';
   if (k) { apiKey = k; }
-  const ak = localStorage.getItem('attom_k') || '';
-  if (ak) { attomKey = ak; }
-  if (k && ak) showKeyBar();
-  else if (k) showKeyBar(); // show if at least Anthropic key present
+  // Auto-load ATTOM key
+  const ak = localStorage.getItem('attom_k') || 'fdf7564387e59ea17946484e30cbc33f';
+  if (ak) { 
+    attomKey = ak; 
+    try { localStorage.setItem('attom_k', ak); } catch(e) {}
+  }
+  if (k) showKeyBar();
 }
 function showKeyBar() {
   document.getElementById('apiPanel').style.display = 'none';
@@ -1077,67 +1080,129 @@ function wireAdj(slId, inId, key) {
 
 // ── API call ───────────────────────────────────────────────────────────
 async function fetchAttom(address) {
-  // Call ATTOM API directly from browser for live county data
   const addr1 = address.replace(/,.*$/,'').trim();
-  const addr2 = 'Cleveland, OH';
+  const addr2 = address.includes(',') ? address.split(',').slice(1).join(',').trim() : 'Cleveland, OH';
+  
+  // ATTOM property detail endpoint
   const url = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/detail?address1=${encodeURIComponent(addr1)}&address2=${encodeURIComponent(addr2)}`;
+  
   const res = await fetch(url, {
-    headers: { 'apikey': attomKey, 'Accept': 'application/json' }
+    method: 'GET',
+    headers: { 
+      'apikey': attomKey, 
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
   });
-  if (!res.ok) throw new Error(`ATTOM API error ${res.status}`);
+  
+  if (!res.ok) {
+    const errText = await res.text().catch(()=>'');
+    throw new Error(`ATTOM error ${res.status}: ${errText.substring(0,100)}`);
+  }
   const d = await res.json();
-  const p = d.property?.[0];
-  if (!p) throw new Error('Property not found in ATTOM');
+  if (!d.property || d.property.length === 0) {
+    throw new Error(`Property not found in ATTOM — try full address with city and state`);
+  }
+  const p = d.property[0];
+  
+  // Also try to get expanded sale history
+  try {
+    const attomId = p.identifier?.attomId || p.identifier?.Id;
+    if (attomId) {
+      const salesUrl = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/saleshistory/detail?id=${attomId}`;
+      const salesRes = await fetch(salesUrl, {
+        headers: { 'apikey': attomKey, 'Accept': 'application/json' }
+      });
+      if (salesRes.ok) {
+        const salesData = await salesRes.json();
+        if (salesData.property?.[0]?.salehistory) {
+          p._saleHistory = salesData.property[0].salehistory.slice(0,3);
+        }
+      }
+    }
+  } catch(e) { /* sales history optional */ }
+  
   return p;
 }
 
 function mapAttomToS(p, address) {
-  // Map ATTOM response fields to S structure
-  const id = p.identifier || {};
-  const addr = p.address || {};
-  const bldg = p.building || {};
-  const rooms = bldg.rooms || {};
-  const size = bldg.size || {};
-  const lot = p.lot || {};
-  const summary = p.summary || {};
-  const assess = p.assessment || {};
-  const tax = assess.tax || {};
-  const mkt = assess.market || {};
-  const assd = assess.assessed || {};
-  const owner = p.owner || {};
-  const o1 = owner.owner1 || {};
-  const util = p.utilities || {};
-  const area = p.area || {};
+  // ATTOM API v1 correct field mappings
+  const id       = p.identifier  || {};
+  const addr     = p.address     || {};
+  const bldg     = p.building    || {};
+  const rooms    = bldg.rooms    || {};
+  const size     = bldg.size     || {};
+  const interior = bldg.interior || {};
+  const lot      = p.lot         || {};
+  const summary  = p.summary     || {};
+  const assess   = p.assessment  || {};
+  const tax      = assess.tax    || {};
+  const mkt      = assess.market || {};
+  const assd     = assess.assessed || {};
+  const owner    = p.owner       || {};
+  const o1       = owner.owner1  || {};
+  const o2       = owner.owner2  || {};
+  const util     = p.utilities   || {};
+  const area     = p.area        || {};
+  const vintage  = p.vintage     || {};
+  const sale     = p.sale        || {};
+  const saleAmt  = sale.amount   || {};
 
-  const ownerName = [o1.lastName, o1.firstName].filter(Boolean).join(', ') || o1.fullname || 'See MyPlace';
-  const beds = rooms.beds || rooms.bedsCount || 0;
-  const baths = rooms.bathsFull || rooms.bathstotal || 0;
-  const sqft = size.livingsize || size.universalsize || size.grosssize || 0;
-  const lotSqft = lot.lotsize2 || Math.round((lot.lotsize1 || 0) * 43560);
-  const yearBuilt = summary.yearbuilt || 0;
-  const annualTax = tax.taxAmt || tax.taxamt || 0;
-  const taxYear = tax.taxYear || tax.taxyear || 2024;
-  const mktVal = mkt.mktTtlValue || assd.assdTtlValue * 2.86 || 0;
-  const assdVal = assd.assdTtlValue || Math.round(mktVal * 0.35);
-  const apn = id.apn || id.apnOrig || '';
-  const propType = summary.proptype || summary.propLandUse || 'Single Family';
-  const style = summary.archStyle || propType;
-  const landUse = summary.propLandUse || '';
-  const zoning = summary.zoningType || '';
-  const heat = util.coolingtype || '';
-  const water = util.watertype || 'Public';
-  const sewer = util.sewertype || 'Public';
+  // Owner — ATTOM uses fullName or lastName/firstName
+  const o1Name = o1.fullName || [o1.lastName, o1.firstName].filter(Boolean).join(', ') || '';
+  const o2Name = o2.fullName || [o2.lastName, o2.firstName].filter(Boolean).join(', ') || '';
+  const ownerName = [o1Name, o2Name].filter(Boolean).join(' & ') || 'See MyPlace';
 
-  // Sale history
+  // Building
+  const beds     = rooms.beds      || rooms.bedsCount  || 0;
+  const baths    = rooms.bathsFull || rooms.bathsTotal  || rooms.bathstotal || 0;
+  const sqft     = size.livingSize || size.livingsize   || size.universalSize || size.grossSize || 0;
+  const lotSqft  = lot.lotSize2    || lot.lotsize2      || Math.round((lot.lotSize1 || lot.lotsize1 || 0) * 43560);
+  const yearBuilt= summary.yearBuilt || summary.yearbuilt || vintage.yearBuilt || 0;
+  const stories  = bldg.stories    || summary.stories   || 1;
+  const garage   = bldg.parking?.garageType || bldg.parking?.prkgType || 'None';
+  const bsmtSize = interior.bsmtSize || interior.bsmtsize || 0;
+  const roof     = bldg.construction?.roofCover || bldg.construction?.roofcover || '';
+  const frameType= bldg.construction?.frameType || bldg.construction?.frameCodedesc || 'Frame';
+  const heatType = util.heatingType || util.heatingtype || '';
+  const coolType = util.coolingType || util.coolingtype || 'None';
+  const waterType= util.waterType   || util.watertype   || 'Public';
+  const sewerType= util.sewerType   || util.sewertype   || 'Public';
+
+  // Tax & Assessment
+  const annualTax= tax.taxAmt      || tax.taxamt        || 0;
+  const taxYear  = tax.taxYear     || tax.taxyear       || 2024;
+  const mktVal   = mkt.mktTtlValue || mkt.mkttTtlValue  || (assd.assdTtlValue ? assd.assdTtlValue / 0.35 : 0);
+  const assdVal  = assd.assdTtlValue || assd.assdttlvalue || Math.round(mktVal * 0.35);
+
+  // Identifiers
+  const apn      = id.apn          || id.apnOrig        || '';
+  const propType = summary.propType || summary.proptype  || summary.propLandUse || 'Single Family';
+  const propStyle= summary.archStyle|| summary.archstyle || propType;
+  const landUse  = summary.propLandUse || area.countyUse1 || '';
+  const zoning   = summary.zoningType  || summary.zoningtype || '';
+
+  // Sale history — use expanded history if available, otherwise last sale
   const saleHistory = [];
-  if (p.sale) {
-    const s = p.sale;
+  if (p._saleHistory && p._saleHistory.length > 0) {
+    p._saleHistory.forEach(s => {
+      const amt = s.amount || {};
+      saleHistory.push({
+        date:    s.saleTransDate || s.salesSearchDate || '',
+        price:   amt.saleAmt    || 0,
+        type:    s.saleDocType  || 'Warranty Deed',
+        grantor: s.sellerV2     || s.sellerName || '—',
+        grantee: s.buyerV2      || s.buyerName  || ownerName,
+        instrument: 'WD'
+      });
+    });
+  } else if (sale && (saleAmt.saleAmt || sale.saleTransDate || sale.salesSearchDate)) {
     saleHistory.push({
-      date: s.salesearchdate || s.saleTransDate || '',
-      price: s.saleDollarAmt || s.amount?.saleAmt || 0,
-      type: s.saleDocType || 'Warranty Deed',
-      grantor: s.sellerName || '—',
-      grantee: s.buyerName || ownerName,
+      date:    sale.saleTransDate || sale.salesSearchDate || sale.salesearchdate || '',
+      price:   saleAmt.saleAmt   || saleAmt.saleamt      || 0,
+      type:    sale.saleDocType  || sale.saledoctype      || 'Warranty Deed',
+      grantor: sale.sellerV2     || sale.sellerName       || sale.sellername || '—',
+      grantee: sale.buyerV2      || sale.buyerName        || sale.buyername  || ownerName,
       instrument: 'WD'
     });
   }
@@ -1230,7 +1295,7 @@ function mapAttomToS(p, address) {
     permits: [],
     estimatedRepairs: 6000,
     marketRentMonthly: 850,
-    redFlags: ['✅ ATTOM data loaded — verify delinquency on MyPlace before making offer'],
+    redFlags: ['✅ ATTOM data loaded — verify delinquency &amp; permits at myplace.cuyahogacounty.gov before making offer'],
     dealScore: 'Marginal',
     dealNote: 'ATTOM data loaded — check deal math and verify delinquency on MyPlace.',
     comps: []
@@ -1351,7 +1416,8 @@ async function analyze() {
   document.getElementById('out').innerHTML = `
 <div class="loading">
   <div class="loading-top"><div class="spin"></div><span style="color:var(--acc);font-weight:500">Analyzing ${addr}</span></div>
-  <div class="step act">${attomKey ? '→ Pulling live county data from ATTOM...' : '→ Running AI analysis...'}</div>
+  <div class="step act">→ ${attomKey ? 'Pulling live data from ATTOM...' : 'Running AI analysis...'}</div>
+  <div class="step">○ Running deal analysis with Claude...</div>
   <div class="step">○ Calculating deal math to the cent...</div>
 </div>`;
   try {
