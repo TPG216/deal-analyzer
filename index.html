@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cleveland Deal Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0c0c0c;--s1:#161616;--s2:#1e1e1e;--b1:#2a2a2a;--b2:#363636;--t1:#f2f2f2;--t2:#999;--t3:#555;--green:#22c55e;--gbg:#0a2318;--gbr:#0f3a22;--red:#ef4444;--rbg:#1f0808;--rbr:#3a0f0f;--amber:#f59e0b;--abg:#1f1508;--abr:#3a2a0f;--blue:#3b82f6;--acc:#c8ff00;--mono:"DM Mono",monospace;--sans:"DM Sans",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg);color:var(--t1);font-family:var(--sans);font-size:14px;line-height:1.5}
+body{max-width:960px;margin:0 auto;padding:1.5rem 1.25rem 6rem}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:1.25rem;margin-bottom:1.25rem;border-bottom:1px solid var(--b1);flex-wrap:wrap;gap:10px}
+.htitle{font-size:24px;font-weight:600;letter-spacing:-.5px}
+.htitle em{color:var(--acc);font-style:normal}
+.hsub{font-size:11px;color:var(--t3);font-family:var(--mono);margin-top:3px}
+.pill{display:inline-flex;align-items:center;font-size:11px;padding:4px 10px;border-radius:99px;font-family:var(--mono);border:1px solid}
+.pill.g{background:var(--gbg);color:var(--green);border-color:var(--gbr)}
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:10px;padding:1rem 1.2rem;margin-top:.85rem}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid var(--b1);flex-wrap:wrap;gap:6px}
+.card-hdr h3{font-size:13px;font-weight:600}
+.row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--b1);font-size:12px;gap:10px}
+.row:last-child{border-bottom:none}
+.rk{color:var(--t2)}.rv{font-weight:500;text-align:right;font-family:var(--mono)}
+.pos{color:var(--green)}.neg{color:var(--red)}.warn{color:var(--amber)}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tile{background:var(--s2);border-radius:8px;padding:12px 14px}
+.tile .lbl{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;font-family:var(--mono)}
+.tile .val{font-size:18px;font-weight:600;font-family:var(--mono)}
+.tile .sub{font-size:11px;color:var(--t3);margin-top:2px}
+.tile.pos .val{color:var(--green)}.tile.neg .val{color:var(--red)}.tile.warn .val{color:var(--amber)}
+.adj{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.adj label{font-size:12px;color:var(--t2);width:170px;flex-shrink:0}
+.adj input[type=range]{flex:1;accent-color:var(--acc);cursor:pointer}
+.adj input[type=number]{width:100px;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:7px 10px;color:var(--acc);font-family:var(--mono);font-size:13px;font-weight:500;outline:none;text-align:right;-moz-appearance:textfield}
+.adj input[type=number]::-webkit-outer-spin-button,.adj input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+.adj input[type=number]:focus{border-color:var(--acc)}
+.slbl{font-size:10px;font-weight:500;letter-spacing:.08em;color:var(--t3);text-transform:uppercase;margin:1.25rem 0 8px;font-family:var(--mono)}
+.hint{font-size:10px;color:var(--t3);font-family:var(--mono);margin-bottom:8px}
+.am-wrap{overflow-x:auto;margin-top:12px}
+.am-table{width:100%;border-collapse:collapse;font-size:11.5px;font-family:var(--mono)}
+.am-table th{font-size:10px;color:var(--t3);font-weight:500;text-align:left;padding:5px 8px;border-bottom:1px solid var(--b1);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.am-table th.r,.am-table td.r{text-align:right}
+.am-table td{padding:5px 8px;border-bottom:1px solid var(--b1);color:var(--t1);white-space:nowrap}
+.am-table tr:last-child td{border-bottom:none}
+.am-table tfoot td{color:var(--t2);font-size:10px;border-top:1px solid var(--b2)}
+.div{height:1px;background:var(--b1);margin:.75rem 0}
+.act-row{display:flex;gap:8px;margin-top:1.1rem;flex-wrap:wrap}
+.act-btn{background:var(--gbg);border:1px solid var(--gbr);border-radius:6px;color:var(--green);font-size:12px;font-weight:600;padding:10px 18px;cursor:pointer;font-family:var(--sans)}
+.act-btn:hover{background:#0f3a22}
+.info-box{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:12px}
+.lender-tile{background:var(--s2);border:1px solid var(--abr);border-radius:8px;padding:12px 14px}
+.lender-tile .lbl{font-size:10px;color:var(--amber);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;font-family:var(--mono)}
+.lender-tile .val{font-size:18px;font-weight:600;color:var(--amber);font-family:var(--mono)}
+.lender-tile .sub{font-size:11px;color:var(--t3);margin-top:2px}
+@media(max-width:600px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr}.adj label{width:120px}body{padding:1rem .85rem 5rem}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <div class="htitle">🏘️ Cleveland <em>Deal</em> Analyzer</div>
+    <div class="hsub">Cuyahoga County · Private Money + Reserve · Land Contract Exit · Cents Precision</div>
+  </div>
+  <span class="pill g">Sub $50K Strategy</span>
+</div>
+
+<!-- API Key -->
+<div id="apiPanel" style="background:var(--s1);border:1px solid var(--abr);border-radius:10px;padding:1rem 1.2rem;margin-bottom:1rem">
+  <div style="font-size:12px;color:var(--amber);font-weight:500;margin-bottom:6px">⚙ One-time setup — Anthropic API key</div>
+  <p style="font-size:12px;color:var(--t2);margin-bottom:10px">Get a free key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--blue)">console.anthropic.com</a> → API Keys → Create Key. Saves permanently in your browser.</p>
+  <div style="display:flex;gap:8px">
+    <input type="password" id="keyIn" placeholder="sk-ant-api03-..." style="flex:1;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:9px 12px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    <button onclick="saveKey()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer">Save & Start</button>
+  </div>
+</div>
+<div id="keyBar" style="display:none;background:var(--gbg);border:1px solid var(--gbr);border-radius:8px;padding:10px 14px;margin-bottom:1rem;display:none;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+  <span style="font-size:12px;color:var(--green);font-family:var(--mono)">✓ API key active — <span id="keyHint"></span></span>
+  <button onclick="resetKey()" style="font-size:11px;padding:4px 10px;background:transparent;border:1px solid var(--gbr);border-radius:4px;color:var(--green);cursor:pointer">Change key</button>
+</div>
+
+<!-- Search -->
+<div style="display:flex;gap:8px;margin-bottom:1.5rem">
+  <input type="text" id="addrIn" placeholder="🔍  Enter any Cuyahoga County address…" onkeydown="if(event.key==='Enter')analyze()" style="flex:1;background:var(--s1);border:1px solid var(--b2);border-radius:8px;padding:13px 16px;color:var(--t1);font-size:15px;outline:none;font-family:var(--sans)">
+  <button id="goBtn" onclick="analyze()" style="background:var(--acc);color:#000;border:none;border-radius:8px;padding:13px 26px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap">Analyze Deal →</button>
+</div>
+
+<!-- Verdict banner (hidden until analysis runs) -->
+<div id="verdict" style="display:none;padding:12px 16px;border-radius:8px;font-size:13px;font-weight:600;margin-bottom:1rem;border:1px solid"></div>
+
+<div id="out"></div>
+
+<script>
+const SERVICING = 65;
+let apiKey = '';
+
+function loadKey(){
+  const k = localStorage.getItem('cda_k') || '';
+  if(k){ apiKey=k; showKeyBar(); }
+}
+function showKeyBar(){
+  document.getElementById('apiPanel').style.display='none';
+  const kb=document.getElementById('keyBar');
+  kb.style.display='flex';
+  document.getElementById('keyHint').textContent=apiKey.substring(0,14)+'...'+apiKey.slice(-4);
+}
+function saveKey(){
+  const k=document.getElementById('keyIn').value.trim();
+  if(!k.startsWith('sk-')){ alert('Key must start with sk-'); return; }
+  apiKey=k;
+  try{ localStorage.setItem('cda_k',k); }catch(e){}
+  showKeyBar();
+}
+function resetKey(){
+  if(!confirm('Remove saved key?'))return;
+  apiKey='';
+  try{ localStorage.removeItem('cda_k'); }catch(e){}
+  document.getElementById('keyBar').style.display='none';
+  document.getElementById('apiPanel').style.display='block';
+}
+
+async function analyze(){
+  const addr=document.getElementById('addrIn').value.trim();
+  if(!addr)return;
+  if(!apiKey){ alert('Enter your Anthropic API key first.'); return; }
+  document.getElementById('goBtn').disabled=true;
+  document.getElementById('verdict').style.display='none';
+  document.getElementById('out').innerHTML=`<div style="padding:20px;background:var(--s1);border:1px solid var(--b1);border-radius:8px;margin-bottom:1rem;font-family:var(--mono);font-size:12px;color:var(--acc);display:flex;align-items:center;gap:10px"><div style="width:14px;height:14px;border:2px solid var(--b2);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite"></div>Analyzing ${addr}...</div>
+<style>@keyframes sp{to{transform:rotate(360deg)}}</style>`;
+
+  try{
+    const prompt=`You are a Cleveland OH real estate investor assistant. Analyze this address for a sub-$50K buy-and-hold deal using private money at 12% and land contract exit.
+
+Address: "${addr}"
+
+Return ONLY raw JSON, first char {, last char }:
+{"dealScore":"Buy","dealNote":"One sentence summary.","neighborhood":"neighborhood name","municipality":"city","propertyType":"Single Family","style":"Bungalow","bedBath":"3/1","sqft":1100,"yearBuilt":1925,"condition":"Fair","marketRentMonthly":875,"estimatedRepairs":6000,"vacancyFlag":false,"floodZone":"X","redFlags":["any red flags"],"comps":[{"address":"nearby comp","soldDate":"2024-10-01","price":38000,"sqft":1050,"bed":3,"bath":1,"dom":30},{"address":"nearby comp","soldDate":"2024-07-15","price":42000,"sqft":1100,"bed":3,"bath":1,"dom":25},{"address":"nearby comp","soldDate":"2025-01-10","price":35000,"sqft":950,"bed":2,"bath":1,"dom":45}]}
+
+dealScore = Strong Buy, Buy, Marginal, or Pass
+marketRentMonthly = realistic current rent for this specific Cleveland neighborhood
+3 realistic recent comps for this area`;
+
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:800,messages:[{role:'user',content:prompt}]})
+    });
+    if(!res.ok){ const e=await res.json().catch(()=>({})); throw new Error(e.error?.message||`API error ${res.status}`); }
+    const d=await res.json();
+    const txt=d.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+    const cleaned=txt.replace(/```json/gi,'').replace(/```/g,'').trim();
+    const si=cleaned.indexOf('{'),ei=cleaned.lastIndexOf('}');
+    if(si===-1||ei===-1)throw new Error('No response — try again');
+    const info=JSON.parse(cleaned.slice(si,ei+1));
+
+    // Show verdict
+    const vc=info.dealScore==='Strong Buy'||info.dealScore==='Buy'?'go':info.dealScore==='Marginal'?'maybe':'pass';
+    const vcColors={go:{bg:'var(--gbg)',border:'var(--gbr)',color:'var(--green)'},maybe:{bg:'var(--abg)',border:'var(--abr)',color:'var(--amber)'},pass:{bg:'var(--rbg)',border:'var(--rbr)',color:'var(--red)'}};
+    const v=document.getElementById('verdict');
+    v.style.display='block';
+    v.style.background=vcColors[vc].bg;
+    v.style.borderColor=vcColors[vc].border;
+    v.style.color=vcColors[vc].color;
+    v.innerHTML=`${info.dealScore==='Strong Buy'?'🟢':info.dealScore==='Buy'?'✅':info.dealScore==='Marginal'?'🟡':'🔴'} ${info.dealScore} — ${info.dealNote}`;
+
+    // Store address and info for PDF
+    S.address=addr;
+    S.info=info;
+
+    // Show property info + comps
+    const rfHtml=(info.redFlags||[]).length?`<div style="font-size:12px;color:var(--red);font-family:var(--mono);line-height:1.9;padding:6px 0">${info.redFlags.map(f=>`⚠️ ${f}`).join('<br>')}</div>`:'';
+
+    const compRows=(info.comps||[]).map(co=>`
+      <div class=row>
+        <span class=rk>🏠 ${co.address}<br><span style="font-size:10px;color:var(--t3)">${co.bed}bd/${co.bath}ba · ${(co.sqft||0).toLocaleString()} sqft · ${co.soldDate||'—'} · ${co.dom}d on mkt</span></span>
+        <span class=rv>$${Math.round(co.price).toLocaleString()}</span>
+      </div>`).join('');
+
+    document.getElementById('out').innerHTML=`
+${rfHtml}
+<div class=card style="margin-bottom:1rem">
+  <div class=card-hdr><h3>🏠 Property snapshot — ${addr}</h3></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div>
+      ${[['🏗️ Style',info.style||'—'],['🛏️ Bed/Bath',info.bedBath||'—'],['📐 Sqft',(info.sqft||0).toLocaleString()],['📅 Year built',info.yearBuilt||'—'],['🔧 Condition',info.condition||'—'],['🌊 Flood zone','Zone '+(info.floodZone||'X')]].map(([k,v])=>`<div class=row><span class=rk>${k}</span><span class=rv>${v}</span></div>`).join('')}
+    </div>
+    <div>
+      ${[['🏘️ Neighborhood',info.neighborhood||'—'],['🏙️ Municipality',info.municipality||'—'],['🏠 Market rent','$'+(info.marketRentMonthly||0).toLocaleString()+'/mo'],['🔨 Est. repairs','$'+(info.estimatedRepairs||0).toLocaleString()],['👤 Vacancy',info.vacancyFlag?'🔒 Vacant':'Occupied'],['🏢 Type',info.propertyType||'—']].map(([k,v])=>`<div class=row><span class=rk>${k}</span><span class=rv>${v}</span></div>`).join('')}
+    </div>
+  </div>
+</div>
+<div class=card style="margin-bottom:1.5rem">
+  <div class=card-hdr><h3>🔍 Comparable sales</h3></div>
+  ${compRows||'<div class=row><span class=rk>No comps found</span><span class=rv>—</span></div>'}
+</div>`;
+
+    render();
+  }catch(err){
+    document.getElementById('out').innerHTML=`<div style="background:var(--rbg);border:1px solid var(--rbr);border-radius:8px;padding:16px;font-size:12px;color:var(--red);font-family:var(--mono);line-height:1.8">⚠ ${err.message}<br><br>· Check API credits at console.anthropic.com<br>· Try again — occasional timeouts happen</div>`;
+  }
+  document.getElementById('goBtn').disabled=false;
+}
+
+
+let S = {
+  offer: 25000, reserve: 5000,
+  pmRate: 12, pmTerm: 5,
+  lcDown: 3000, lcRate: 10, lcAmort: 30,
+  annualTax: 0
+};
+
+function c(n){return'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function c0(n){return'$'+Math.round(Math.abs(n)).toLocaleString();}
+function sgn(n){return(n>=0?'+':'−')+c(Math.abs(n));}
+function pct(n){return n.toFixed(2)+'%';}
+
+function pmt(p,r,y){
+  if(!p||!y)return 0;
+  const mr=r/100/12,n=y*12;
+  if(mr===0)return p/n;
+  return p*(mr*Math.pow(1+mr,n))/(Math.pow(1+mr,n)-1);
+}
+function loanFromPmt(pm,r,y,dn){
+  const mr=r/100/12,n=y*12;
+  const loan=mr===0?pm*n:pm*(1-Math.pow(1+mr,-n))/mr;
+  return{loan,price:loan+dn,total:dn+pm*n};
+}
+
+function buildAmTable(principal,rate,years,label){
+  const p=pmt(principal,rate,years);
+  let bal=principal,rows='',tI=0,tP=0;
+  for(let yr=1;yr<=years;yr++){
+    let yI=0,yP=0;
+    for(let mo=0;mo<12;mo++){
+      const i=bal*(rate/100/12),pa=Math.min(p-i,bal);
+      yI+=i;yP+=pa;bal=Math.max(0,bal-pa);
+      if(bal<0.005)break;
+    }
+    tI+=yI;tP+=yP;
+    rows+=`<tr><td>Year ${yr}</td><td class=r>${c(p*12)}</td><td class="r pos">${c(yP)}</td><td class="r neg">${c(yI)}</td><td class=r>${c(Math.max(0,bal))}</td></tr>`;
+    if(bal<0.005)break;
+  }
+  return`<div style="font-size:11px;color:var(--t2);margin:12px 0 6px;font-family:var(--mono)">${label} · ${c(principal)} @ ${rate}% · ${years}yr · <strong>${c(p)}/mo</strong></div>
+<div class=am-wrap><table class=am-table>
+<thead><tr><th>Year</th><th class=r>Annual pmt</th><th class=r>Principal ↓</th><th class=r>Interest</th><th class=r>Balance</th></tr></thead>
+<tbody>${rows}</tbody>
+<tfoot><tr><td>Totals</td><td class=r>${c(p*years*12)}</td><td class="r pos">${c(tP)}</td><td class="r neg">${c(tI)}</td><td class=r>—</td></tr></tfoot>
+</table></div>`;
+}
+
+function adj(label,slId,inId,min,max,step,key){
+  return`<div class=adj>
+    <label>${label}</label>
+    <input type=range id="${slId}" min="${min}" max="${max}" step="${step}" value="${S[key]}">
+    <input type=number id="${inId}" min="${min}" max="${max}" step="${step}" value="${S[key]}">
+  </div>`;
+}
+
+function wire(slId,inId,key,min,max){
+  const sl=document.getElementById(slId),inp=document.getElementById(inId);
+  if(!sl||!inp)return;
+  sl.oninput=()=>{inp.value=sl.value;S[key]=parseFloat(sl.value);render();};
+  inp.oninput=()=>{const v=parseFloat(inp.value);if(!isNaN(v)&&v>0){const cl=Math.min(max,Math.max(min,v));sl.value=cl;S[key]=v;}};
+  inp.onkeydown=e=>{if(e.key==='Enter')inp.blur();};
+  inp.onblur=()=>{const v=parseFloat(inp.value)||min;S[key]=v;sl.value=Math.min(max,Math.max(min,v));render();};
+}
+
+function render(){
+  const {offer,reserve,pmRate,pmTerm,lcDown,lcRate,lcAmort,annualTax}=S;
+  const pmPrin=offer+reserve;
+  const pmPmt=pmt(pmPrin,pmRate,pmTerm);
+  const totalPMPaid=pmPmt*pmTerm*12;
+  const targetLC=pmPmt+100;
+  const taxMo=annualTax/12;
+  const lc20=loanFromPmt(targetLC,lcRate,20,lcDown);
+  const lc25=loanFromPmt(targetLC,lcRate,25,lcDown);
+  const lc30=loanFromPmt(targetLC,lcRate,30,lcDown);
+  const selLC=lcAmort===20?lc20:lcAmort===25?lc25:lc30;
+  const cf5=targetLC-pmPmt-SERVICING;
+  const cfPost=targetLC-SERVICING;
+  const lenderProfit=totalPMPaid-pmPrin;
+  const lenderCoC=(lenderProfit/pmPrin*100);
+  const lenderAnnual=lenderCoC/pmTerm;
+  const insLow=Math.round(pmPrin*0.012/12);
+  const insHigh=Math.round(pmPrin*0.018/12);
+  const buyerTotalLow=targetLC+taxMo+insLow;
+  const buyerTotalHigh=targetLC+taxMo+insHigh;
+
+  const lcRows=[{l:lc20,y:20},{l:lc25,y:25},{l:lc30,y:30}].map(({l,y})=>
+    `<tr ${y===lcAmort?'style="background:var(--s2)"':''}>
+      <td>${y}yr${y===lcAmort?' ★':''}</td><td class=r>${c(l.price)}</td>
+      <td class=r>${c(l.loan)}</td><td class="r pos">${c(lcDown)}</td>
+      <td class="r pos">${c(targetLC)}/mo</td><td class=r>${c(l.total)}</td>
+    </tr>`).join('');
+
+  const retRows=[{l:lc20,y:20},{l:lc25,y:25},{l:lc30,y:30}].map(({l,y})=>{
+    const net=l.total-totalPMPaid-(SERVICING*y*12);
+    return`<tr ${y===lcAmort?'style="background:var(--s2)"':''}>
+      <td>${y}yr${y===lcAmort?' ★':''}</td><td class=r>${c(l.total)}</td>
+      <td class="r neg">${c(totalPMPaid)}</td><td class="r pos">${c(net)}</td>
+      <td class="${cf5>=0?'r pos':'r neg'}">${sgn(cf5*pmTerm*12)}</td>
+      <td class="r pos">+${c(cfPost*(y-pmTerm)*12)}</td>
+    </tr>`;}).join('');
+
+  document.getElementById('out').innerHTML=`
+
+<div class=slbl>💼 Deal structure — private money</div>
+<div class=card>
+  <div class=card-hdr><h3>🏦 Private money loan</h3></div>
+  <div class=info-box>$5,000 reserve included in every loan by default — covers lost payments, locksmith, winterization & misc costs. Adjust below.</div>
+  <div class=hint>💡 Drag slider or type a number — press Enter or click away to apply</div>
+  ${adj('🎯 Offer price ($)','slOff','inOff',5000,75000,500,'offer')}
+  ${adj('🏦 Reserve fund ($)','slRes','inRes',0,10000,500,'reserve')}
+  ${adj('📈 PM interest rate (%)','slPmR','inPmR',8,15,0.5,'pmRate')}
+  ${adj('📅 PM term (years)','slPmT','inPmT',3,8,1,'pmTerm')}
+  <div class=div></div>
+  ${[['🎯 Purchase offer',c(offer)],['🏦 Reserve fund','+ '+c(reserve)],['💰 Total PM loan',c(pmPrin)],['📆 Monthly PM payment (P+I)','<span class=neg>−'+c(pmPmt)+'/mo</span>'],['🔧 Servicing fee','<span class=neg>−$65.00/mo</span>'],['💳 Total your monthly out','<strong class=neg>−'+c(pmPmt+SERVICING)+'/mo</strong>'],['💸 Total paid over '+pmTerm+'yr',c(totalPMPaid)],['📈 Total interest to lender',c(lenderProfit)]].map(([k,v])=>`<div class=row><span class=rk>${k}</span><span class=rv>${v}</span></div>`).join('')}
+  ${buildAmTable(pmPrin,pmRate,pmTerm,'🏦 PM loan — your cost')}
+</div>
+
+<div class=card>
+  <div class=card-hdr><h3>💵 Lender cash-on-cash return</h3></div>
+  <div class=g3 style="margin-bottom:12px">
+    <div class=lender-tile><div class=lbl>Capital invested</div><div class=val>${c(pmPrin)}</div><div class=sub>One-time lend</div></div>
+    <div class=lender-tile><div class=lbl>Total interest earned</div><div class=val>${c(lenderProfit)}</div><div class=sub>Over ${pmTerm} years</div></div>
+    <div class=lender-tile><div class=lbl>Monthly income</div><div class=val>${c(pmPmt)}</div><div class=sub>Guaranteed P+I</div></div>
+  </div>
+  <div class=g3 style="margin-bottom:12px">
+    <div class=lender-tile><div class=lbl>Total cash-on-cash</div><div class=val>${pct(lenderCoC)}</div><div class=sub>Total return on capital</div></div>
+    <div class=lender-tile><div class=lbl>Annualized CoC</div><div class=val>${pct(lenderAnnual)}</div><div class=sub>Per year average</div></div>
+    <div class=lender-tile><div class=lbl>Annual yield</div><div class=val>${pct(pmPmt*12/pmPrin*100)}</div><div class=sub>Effective annual return</div></div>
+  </div>
+</div>
+
+<div class=card>
+  <div class=card-hdr><h3>💳 Monthly breakdown</h3></div>
+  ${[['📥 LC payment from buyer (P+I)','<strong class=pos>+'+c(targetLC)+'/mo</strong>'],['📤 PM payment to lender','<span class=neg>−'+c(pmPmt)+'/mo</span>'],['🔧 Servicing fee','<span class=neg>−$65.00/mo</span>'],['💚 Net cashflow yrs 1–'+pmTerm,'<strong class="'+(cf5>=0?'pos':'neg')+'">'+sgn(cf5)+'/mo</strong>'],['🚀 Net cashflow yr '+(pmTerm+1)+'+','<strong class=pos>+'+c(cfPost)+'/mo</strong>']].map(([k,v])=>`<div class=row><span class=rk>${k}</span><span class=rv>${v}</span></div>`).join('')}
+  <div class=div></div>
+  <div style="background:var(--bbg,#080f1f);border:1px solid #0f1f3a;border-radius:8px;padding:12px 14px;margin-top:4px">
+    <div style="font-size:11px;color:#3b82f6;font-family:var(--mono);font-weight:500;margin-bottom:8px">📋 Estimated buyer total monthly obligation</div>
+    ${[['📝 P+I (land contract)','<span class=pos>'+c(targetLC)+'/mo</span>'],['🏛️ Property taxes (annual: '+c(annualTax)+')',annualTax>0?'<span style="color:#3b82f6">'+c(taxMo)+'/mo</span>':'<span class=t2>Enter below</span>'],['🏠 Insurance (cash value on '+c(pmPrin)+')','<span style="color:#3b82f6">'+c(insLow)+' – '+c(insHigh)+'/mo</span>'],['📊 Estimated buyer total',annualTax>0?'<strong style="color:#3b82f6">'+c(buyerTotalLow)+' – '+c(buyerTotalHigh)+'/mo</strong>':'<span class=t2>Enter annual taxes below</span>']].map(([k,v])=>`<div class=row><span class=rk>${k}</span><span class=rv>${v}</span></div>`).join('')}
+  </div>
+  <div style="margin-top:12px">
+    <div class=adj>
+      <label>🏛️ Annual taxes ($)</label>
+      <input type=range id="slTax" min="0" max="5000" step="50" value="${annualTax}">
+      <input type=number id="inTax" min="0" max="99999" step="50" value="${annualTax}" placeholder="0">
+    </div>
+  </div>
+</div>
+
+<div class=slbl>🤝 Exit — land contract</div>
+<div class=card>
+  <div class=card-hdr><h3>📝 Owner financing</h3></div>
+  <div class=hint>💡 Drag slider or type a number — press Enter or click away to apply</div>
+  ${adj('💵 Down payment ($)','slLcD','inLcD',0,10000,500,'lcDown')}
+  ${adj('📈 Buyer rate (%)','slLcR','inLcR',8,14,0.5,'lcRate')}
+  ${adj('📅 LC term (years)','slLcA','inLcA',20,30,5,'lcAmort')}
+  <div class=div></div>
+  ${[['📆 Buyer monthly (P+I)','<strong class=pos>+'+c(targetLC)+'/mo</strong>'],['📤 Your PM payment','<span class=neg>−'+c(pmPmt)+'/mo</span>'],['💚 Your spread','<span class=pos>+$100.00/mo always</span>']].map(([k,v])=>`<div class=row><span class=rk>${k}</span><span class=rv>${v}</span></div>`).join('')}
+  <div class=am-wrap><table class=am-table>
+    <thead><tr><th>Term</th><th class=r>LC sale price</th><th class=r>Loan</th><th class=r>Down</th><th class=r>Buyer pmt</th><th class=r>Buyer total</th></tr></thead>
+    <tbody>${lcRows}</tbody>
+  </table></div>
+  ${buildAmTable(selLC.loan,lcRate,lcAmort,'📝 Land contract — buyer pays you')}
+</div>
+
+<div class=slbl>📊 Your returns</div>
+<div class=g3 style="margin-bottom:12px">
+  <div class="tile ${cf5>=0?'pos':'neg'}"><div class=lbl>Cashflow yrs 1–${pmTerm}</div><div class=val>${sgn(cf5)}</div><div class=sub>per month net</div></div>
+  <div class="tile pos"><div class=lbl>Cashflow yr ${pmTerm+1}+</div><div class=val>+${c(cfPost)}</div><div class=sub>per month</div></div>
+  <div class="tile pos"><div class=lbl>Net spread</div><div class=val>+${c(100-SERVICING)}</div><div class=sub>after $65 servicing</div></div>
+</div>
+<div class=card>
+  <div class=card-hdr><h3>📈 Cash-on-cash returns — all 3 terms</h3></div>
+  <div class=am-wrap><table class=am-table>
+    <thead><tr><th>Term</th><th class=r>Total LC in</th><th class=r>Total PM out</th><th class=r>Net profit</th><th class=r>Yrs 1–${pmTerm} CF</th><th class=r>Post-PM CF</th></tr></thead>
+    <tbody>${retRows}</tbody>
+  </table></div>
+</div>
+<div class=card>
+  <div class=card-hdr><h3>🚀 Power of year ${pmTerm+1}+</h3></div>
+  ${[['📥 LC payment from buyer','+'+c(targetLC)+'/mo'],['📤 PM loan paid off','$0.00/mo ✅'],['🔧 Servicing fee','−$65.00/mo'],['🚀 Net free cashflow','<strong class=pos>+'+c(cfPost)+'/mo</strong>']].map(([k,v])=>`<div class=row><span class=rk>${k}</span><span class=rv>${v}</span></div>`).join('')}
+  <div class=g3 style="margin-top:12px">
+    ${[20,25,30].map(y=>`<div class="tile pos"><div class=lbl>${y}yr deal · ${y-pmTerm} post-PM yrs</div><div class=val>${c(cfPost*(y-pmTerm)*12)}</div></div>`).join('')}
+  </div>
+</div>
+
+<div class=act-row>
+  <button class=act-btn onclick="downloadPDF()">⬇️ Download PDF</button>
+</div>`;
+
+  wire('slOff','inOff','offer',5000,75000);
+  wire('slRes','inRes','reserve',0,10000);
+  wire('slPmR','inPmR','pmRate',8,15);
+  wire('slPmT','inPmT','pmTerm',3,8);
+  wire('slLcD','inLcD','lcDown',0,10000);
+  wire('slLcR','inLcR','lcRate',8,14);
+  wire('slLcA','inLcA','lcAmort',20,30);
+  wire('slTax','inTax','annualTax',0,99999);
+}
+
+function downloadPDF(){
+  const {offer,reserve,pmRate,pmTerm,lcDown,lcRate,lcAmort,annualTax}=S;
+  const pmPrin=offer+reserve;
+  const pmPmt=pmt(pmPrin,pmRate,pmTerm);
+  const targetLC=pmPmt+100;
+  const cf5=targetLC-pmPmt-SERVICING;
+  const cfPost=targetLC-SERVICING;
+  const lc=loanFromPmt(targetLC,lcRate,lcAmort,lcDown);
+  const lenderProfit=pmPmt*pmTerm*12-pmPrin;
+
+  function amRows(principal,rate,years){
+    const p=pmt(principal,rate,years);
+    let bal=principal,rows='',tI=0,tP=0;
+    for(let yr=1;yr<=years;yr++){
+      let yI=0,yP=0;
+      for(let mo=0;mo<12;mo++){const i=bal*(rate/100/12),pa=Math.min(p-i,bal);yI+=i;yP+=pa;bal=Math.max(0,bal-pa);if(bal<0.005)break;}
+      tI+=yI;tP+=yP;
+      rows+=`<tr><td>Year ${yr}</td><td>$${(p*12).toFixed(2)}</td><td style="color:#16a34a">$${yP.toFixed(2)}</td><td style="color:#dc2626">$${yI.toFixed(2)}</td><td>$${Math.max(0,bal).toFixed(2)}</td></tr>`;
+      if(bal<0.005)break;
+    }
+    rows+=`<tr style="font-weight:600;border-top:2px solid #333"><td>Totals</td><td>$${(p*years*12).toFixed(2)}</td><td style="color:#16a34a">$${tP.toFixed(2)}</td><td style="color:#dc2626">$${tI.toFixed(2)}</td><td>—</td></tr>`;
+    return rows;
+  }
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Deal Analysis</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;padding:20px;color:#111}
+h1{font-size:20px;margin-bottom:4px}h2{font-size:13px;background:#111;color:#fff;padding:5px 10px;margin:14px 0 8px;border-radius:3px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:11px}.rk{color:#666}.rv{font-weight:500;font-family:monospace}
+.pos{color:#16a34a}.neg{color:#dc2626}.warn{color:#d97706}table{width:100%;border-collapse:collapse;font-size:10px;font-family:monospace}
+th{background:#f5f5f5;padding:4px 8px;text-align:left;border:1px solid #ddd}td{padding:4px 8px;border:1px solid #eee}
+.tile{background:#f8f8f8;padding:10px;border-radius:4px;margin-bottom:8px}.tile .lbl{font-size:9px;color:#888;text-transform:uppercase}.tile .val{font-size:16px;font-weight:700}
+.footer{margin-top:20px;padding-top:10px;border-top:1px solid #ddd;font-size:9px;color:#aaa;text-align:center}
+.no-print{text-align:center;margin-top:16px}@media print{.no-print{display:none}}
+</style></head><body>
+<h1>🏘️ Cleveland Deal Analyzer</h1>
+<div style="font-size:11px;color:#666;margin-bottom:12px">Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})} · Sub $50K Strategy · Private Money + Land Contract</div>
+<div class=grid>
+<div>
+<h2>💼 Private Money Loan</h2>
+${[['Offer price',c(offer)],['Reserve fund',c(reserve)],['Total PM loan',c(pmPrin)],['Interest rate',pmRate+'%'],['Term',pmTerm+' years'],['Monthly payment (P+I)','<span class=neg>'+c(pmPmt)+'/mo</span>'],['Servicing fee','$65.00/mo'],['Total paid over '+pmTerm+'yr',c(pmPmt*pmTerm*12)],['Total interest',c(lenderProfit)]].map(([k,v])=>`<div class=row><span class=rk>${k}</span><span class=rv>${v}</span></div>`).join('')}
+<h2>💵 Lender Returns</h2>
+${[['Capital invested',c(pmPrin)],['Monthly income',c(pmPmt)+'/mo'],['Total interest earned',c(lenderProfit)],['Total cash-on-cash',(lenderProfit/pmPrin*100).toFixed(2)+'%'],['Annualized CoC',(lenderProfit/pmPrin*100/pmTerm).toFixed(2)+'%/yr'],['Annual yield',(pmPmt*12/pmPrin*100).toFixed(2)+'%/yr']].map(([k,v])=>`<div class=row><span class=rk>${k}</span><span class=rv>${v}</span></div>`).join('')}
+<h2>💳 Monthly Cashflow</h2>
+${[['LC payment from buyer','<span class=pos>+'+c(targetLC)+'/mo</span>'],['PM payment to lender','<span class=neg>−'+c(pmPmt)+'/mo</span>'],['Servicing fee','<span class=neg>−$65.00/mo</span>'],['Net cashflow yrs 1–'+pmTerm,'<strong class="'+(cf5>=0?'pos':'neg')+'">'+sgn(cf5)+'/mo</strong>'],['Net cashflow yr '+(pmTerm+1)+'+',' <strong class=pos>+'+c(cfPost)+'/mo</strong>']].map(([k,v])=>`<div class=row><span class=rk>${k}</span><span class=rv>${v}</span></div>`).join('')}
+</div>
+<div>
+<h2>📝 Land Contract Exit (${lcAmort}yr @ ${lcRate}%)</h2>
+${[['Down payment',c(lcDown)],['Buyer monthly (P+I)','<span class=pos>+'+c(targetLC)+'/mo</span>'],['LC sale price',c(lc.price)],['Loan amount',c(lc.loan)],['Buyer total paid',c(lc.total)],['Your net profit',c(lc.total-pmPmt*pmTerm*12-(SERVICING*lcAmort*12))]].map(([k,v])=>`<div class=row><span class=rk>${k}</span><span class=rv>${v}</span></div>`).join('')}
+<h2>📈 PM Amortization</h2>
+<table><thead><tr><th>Year</th><th>Annual Pmt</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead><tbody>${amRows(pmPrin,pmRate,pmTerm)}</tbody></table>
+<h2>📝 LC Amortization</h2>
+<table><thead><tr><th>Year</th><th>Annual Pmt</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead><tbody>${amRows(lc.loan,lcRate,lcAmort)}</tbody></table>
+</div></div>
+<div class=footer>Cleveland Deal Analyzer · SERVICING $65/mo · Buyer pays taxes & insurance per LC terms</div>
+<div class=no-print><button onclick="window.print()" style="background:#111;color:#fff;border:none;padding:10px 24px;border-radius:4px;font-size:13px;cursor:pointer">🖨️ Print / Save as PDF</button></div>
+</body></html>`;
+
+  const blob=new Blob([html],{type:'text/html'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='deal-analysis.html';a.click();
+  URL.revokeObjectURL(url);
+}
+
+render();
+loadKey();
+</script>
+</body>
+</html>
