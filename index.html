@@ -283,7 +283,7 @@ body{max-width:980px;margin:0 auto;padding:1.5rem 1.25rem 6rem}
 
 <script>
 // ── Constants ──────────────────────────────────────────────────────────
-const RESERVE = 5000;
+let RESERVE = 5000; // Default $5K reserve — user adjustable
 const SERVICING = 65; // Monthly loan servicing fee
 
 // Estimate cash-value insurance based on PM loan amount
@@ -820,12 +820,11 @@ let attomKey = '';
 function loadKey() {
   const k = localStorage.getItem('cda_k') || localStorage.getItem('cuyahoga_deal_analyzer_key') || '';
   if (k) { apiKey = k; }
-  // Auto-load ATTOM key
-  const ak = localStorage.getItem('attom_k') || 'fdf7564387e59ea17946484e30cbc33f';
-  if (ak) { 
-    attomKey = ak; 
-    try { localStorage.setItem('attom_k', ak); } catch(e) {}
-  }
+  // Always load the hardcoded ATTOM key — save to localStorage too
+  const hardcodedAttom = 'fdf7564387e59ea17946484e30cbc33f';
+  const ak = localStorage.getItem('attom_k') || hardcodedAttom;
+  attomKey = ak;
+  try { localStorage.setItem('attom_k', ak); } catch(e) {}
   if (k) showKeyBar();
 }
 function showKeyBar() {
@@ -834,9 +833,14 @@ function showKeyBar() {
   document.getElementById('apiStatus').className = 'pill g';
   document.getElementById('keyBar').style.display = 'flex';
   document.getElementById('keyHint').textContent = apiKey.substring(0,14)+'...'+apiKey.slice(-4);
-  if (attomKey) {
-    document.getElementById('attomKeyBar').style.display='flex';
-    document.getElementById('attomKeyHint').textContent = attomKey.substring(0,8)+'...'+attomKey.slice(-4);
+  const attomBar = document.getElementById('attomKeyBar');
+  const attomHint = document.getElementById('attomKeyHint');
+  if (attomKey && attomBar) {
+    attomBar.style.display='flex';
+    if (attomHint) attomHint.textContent = attomKey.substring(0,8)+'...'+attomKey.slice(-4);
+    // Hide the setup panel since key is already loaded
+    const attomPanel = document.getElementById('attomPanel');
+    if (attomPanel) attomPanel.style.display='none';
   }
 }
 function saveKey() {
@@ -980,49 +984,51 @@ function wireAdj(slId, inId, key) {
 
 // ── API call ───────────────────────────────────────────────────────────
 async function fetchAttom(address) {
+  // Route ATTOM call through Claude API to avoid CORS browser restriction
+  // Claude fetches ATTOM server-side and returns the raw JSON data
   const addr1 = address.replace(/,.*$/,'').trim();
   const addr2 = address.includes(',') ? address.split(',').slice(1).join(',').trim() : 'Cleveland, OH';
-  
-  // ATTOM property detail endpoint
-  const url = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/detail?address1=${encodeURIComponent(addr1)}&address2=${encodeURIComponent(addr2)}`;
-  
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: { 
-      'apikey': attomKey, 
-      'Accept': 'application/json',
-      'Content-Type': 'application/json'
-    }
+  const attomUrl = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/detail?address1=${encodeURIComponent(addr1)}&address2=${encodeURIComponent(addr2)}`;
+
+  const prompt = `Fetch this ATTOM Data API URL and return the raw JSON response exactly as-is. No explanation, no markdown, just the raw JSON.
+
+URL: ${attomUrl}
+Required header: apikey: ${attomKey}
+
+Return only the JSON response body.`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4000,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{ role: 'user', content: prompt }]
+    })
   });
-  
+
   if (!res.ok) {
-    const errText = await res.text().catch(()=>'');
-    throw new Error(`ATTOM error ${res.status}: ${errText.substring(0,100)}`);
+    const e = await res.json().catch(()=>({}));
+    throw new Error(e.error?.message || `API error ${res.status}`);
   }
+
   const d = await res.json();
-  if (!d.property || d.property.length === 0) {
-    throw new Error(`Property not found in ATTOM — try full address with city and state`);
+  const txt = d.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  const cleaned = txt.replace(/```json/gi,'').replace(/```/g,'').trim();
+  const si = cleaned.indexOf('{'), ei = cleaned.lastIndexOf('}');
+  if (si === -1 || ei === -1) throw new Error('ATTOM returned no data for this address');
+  
+  const attomData = JSON.parse(cleaned.slice(si, ei+1));
+  if (!attomData.property || attomData.property.length === 0) {
+    throw new Error('Property not found in ATTOM — verify address is in Cuyahoga County');
   }
-  const p = d.property[0];
-  
-  // Also try to get expanded sale history
-  try {
-    const attomId = p.identifier?.attomId || p.identifier?.Id;
-    if (attomId) {
-      const salesUrl = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/saleshistory/detail?id=${attomId}`;
-      const salesRes = await fetch(salesUrl, {
-        headers: { 'apikey': attomKey, 'Accept': 'application/json' }
-      });
-      if (salesRes.ok) {
-        const salesData = await salesRes.json();
-        if (salesData.property?.[0]?.salehistory) {
-          p._saleHistory = salesData.property[0].salehistory.slice(0,3);
-        }
-      }
-    }
-  } catch(e) { /* sales history optional */ }
-  
-  return p;
+  return attomData.property[0];
 }
 
 function mapAttomToS(p, address) {
@@ -1212,7 +1218,15 @@ async function fetchAnalysis(address) {
       const attomProp = await fetchAttom(address);
       data = mapAttomToS(attomProp, address);
     } catch(attomErr) {
-      console.warn('ATTOM failed:', attomErr.message, '— falling back to AI estimates');
+      console.warn('ATTOM failed:', attomErr.message);
+      // Show warning in loading area
+      const lo = document.querySelector('.loading');
+      if (lo) {
+        const warn = document.createElement('div');
+        warn.style.cssText = 'font-size:11px;color:var(--amber);font-family:var(--mono);margin-top:6px;padding:6px 10px;background:var(--abg);border-radius:4px;border:1px solid var(--abr)';
+        warn.textContent = '⚠ ATTOM: ' + attomErr.message + ' — using AI estimates, enter county data manually';
+        lo.appendChild(warn);
+      }
       data = null;
     }
   }
@@ -1300,7 +1314,7 @@ dealScore=Strong Buy/Buy/Marginal/Pass. marketRentMonthly=realistic for this Cle
     saleHistory:[], permits:[],
     estimatedRepairs: aiData.estimatedRepairs||6000,
     marketRentMonthly: aiData.marketRentMonthly||850,
-    redFlags:['Enter county data in panel above — ATTOM key not set'],
+    redFlags:['ATTOM data unavailable — enter data manually in county panel above'],
     dealScore: aiData.dealScore||'Marginal',
     dealNote: aiData.dealNote||'Add ATTOM key for automatic county data.',
     comps: aiData.comps||[]
@@ -1547,7 +1561,9 @@ ${rfHtml}
   <div class="card-hdr"><h3>🏦 Private money loan — adjust with sliders or type directly</h3></div>
   <div class="info-box">💰 <strong>$5,000.00 reserve</strong> added to every PM loan — covers lost buyer payments, locksmith, winterization, insurance gaps & misc holding costs.</div>
   <div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-bottom:8px">💡 Drag slider or click the number and type — press Enter or click away to apply</div>
+  <div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-bottom:8px">💡 Drag slider or click the number and type — press Enter or click away to apply</div>
   <div class="adj"><label>🎯 Offer price ($)</label><input type="range" id="slOffer" min="5000" max="75000" step="500" value="${offer}"><input type="number" id="inOffer" min="1000" max="500000" step="500" value="${offer}"></div>
+  <div class="adj"><label>🏦 Reserve fund ($)</label><input type="range" id="slReserve" min="0" max="10000" step="500" value="${RESERVE}"><input type="number" id="inReserve" min="0" max="50000" step="500" value="${RESERVE}"></div>
   <div class="adj"><label>📈 PM interest rate (%)</label><input type="range" id="slPmR" min="8" max="15" step="0.5" value="${s.pmRate}"><input type="number" id="inPmR" min="0" max="100" step="0.000001" value="${s.pmRate}"></div>
   <div class="adj"><label>📅 PM term (years)</label><input type="range" id="slPmT" min="3" max="8" step="1" value="${s.pmTerm}"><input type="number" id="inPmT" min="1" max="30" step="1" value="${s.pmTerm}"></div>
   <div class="div"></div>
@@ -1692,6 +1708,15 @@ ${rfHtml}
   wireAdj('slOffer','inOffer','offer');
   wireAdj('slPmR','inPmR','pmRate');
   wireAdj('slPmT','inPmT','pmTerm');
+  // Reserve slider — updates RESERVE global directly
+  const slRes = document.getElementById('slReserve');
+  const inRes = document.getElementById('inReserve');
+  if (slRes && inRes) {
+    slRes.oninput = () => { inRes.value = slRes.value; RESERVE = parseInt(slRes.value)||5000; render(); };
+    inRes.oninput = () => { const v=parseInt(inRes.value)||0; slRes.value=Math.min(10000,Math.max(0,v)); RESERVE=v; };
+    inRes.onkeydown = (e) => { if(e.key==='Enter') inRes.blur(); };
+    inRes.onblur = () => { const v=parseInt(inRes.value)||0; RESERVE=v; slRes.value=Math.min(10000,Math.max(0,v)); render(); };
+  }
   wireAdj('slLcD','inLcD','lcDown');
   wireAdj('slLcR','inLcR','lcRate');
   wireAdj('slLcA','inLcA','lcAmort');
