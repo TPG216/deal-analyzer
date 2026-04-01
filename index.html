@@ -1,0 +1,1827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cleveland Deal Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c0c0c;--s1:#161616;--s2:#1e1e1e;--b1:#2a2a2a;--b2:#363636;
+  --t1:#f2f2f2;--t2:#999;--t3:#555;
+  --green:#22c55e;--gbg:#0a2318;--gbr:#0f3a22;
+  --red:#ef4444;--rbg:#1f0808;--rbr:#3a0f0f;
+  --amber:#f59e0b;--abg:#1f1508;--abr:#3a2a0f;
+  --blue:#3b82f6;--bbg:#080f1f;--bbr:#0f1f3a;
+  --acc:#c8ff00;
+  --mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg);color:var(--t1);font-family:var(--sans);font-size:14px;line-height:1.5}
+body{max-width:980px;margin:0 auto;padding:1.5rem 1.25rem 6rem}
+
+/* Header */
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:1.25rem;margin-bottom:1.25rem;border-bottom:1px solid var(--b1);flex-wrap:wrap;gap:10px}
+.htitle{font-size:24px;font-weight:600;letter-spacing:-.5px}
+.htitle em{color:var(--acc);font-style:normal}
+.hsub{font-size:11px;color:var(--t3);font-family:var(--mono);margin-top:3px}
+
+/* Pills */
+.pill{display:inline-flex;align-items:center;font-size:11px;padding:4px 10px;border-radius:99px;font-family:var(--mono);border:1px solid;font-weight:500}
+.pill.g{background:var(--gbg);color:var(--green);border-color:var(--gbr)}
+.pill.a{background:var(--abg);color:var(--amber);border-color:var(--abr)}
+
+/* API panel */
+.api-panel{background:var(--s1);border:1px solid var(--abr);border-radius:10px;padding:1.1rem 1.25rem;margin-bottom:1.25rem}
+.api-panel h3{font-size:12px;font-weight:500;color:var(--amber);font-family:var(--mono);margin-bottom:6px}
+.api-panel p{font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:10px}
+.api-panel a{color:var(--blue)}
+.api-row{display:flex;gap:8px}
+.api-row input{flex:1;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:9px 12px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none}
+.api-row input:focus{border-color:var(--acc)}
+.api-row button,.btn-acc{background:var(--acc);color:#000;border:none;border-radius:6px;padding:9px 18px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.api-saved{font-size:11px;color:var(--green);font-family:var(--mono);margin-top:6px}
+.key-bar{background:var(--gbg);border:1px solid var(--gbr);border-radius:8px;padding:10px 14px;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.key-bar span{font-size:12px;color:var(--green);font-family:var(--mono)}
+.key-bar button{font-size:11px;padding:4px 10px;background:transparent;border:1px solid var(--gbr);border-radius:4px;color:var(--green);cursor:pointer}
+
+/* Search */
+.srch{display:flex;gap:8px;margin-bottom:1.5rem}
+.srch input{flex:1;background:var(--s1);border:1px solid var(--b2);border-radius:8px;padding:13px 16px;color:var(--t1);font-size:15px;outline:none;font-family:var(--sans)}
+.srch input::placeholder{color:var(--t3)}
+.srch input:focus{border-color:var(--acc)}
+.srch button{background:var(--acc);color:#000;border:none;border-radius:8px;padding:13px 26px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.srch button:disabled{opacity:.35;cursor:not-allowed}
+
+/* Section labels */
+.slbl{font-size:10px;font-weight:500;letter-spacing:.08em;color:var(--t3);text-transform:uppercase;margin:1.25rem 0 8px;font-family:var(--mono);display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+
+/* Grids */
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+
+/* Tiles */
+.tile{background:var(--s1);border:1px solid var(--b1);border-radius:8px;padding:12px 14px}
+.tile .ico{font-size:16px;margin-bottom:5px}
+.tile .lbl{font-size:10px;color:var(--t2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;font-family:var(--mono)}
+.tile .val{font-size:18px;font-weight:600;color:var(--t1);letter-spacing:-.5px;font-family:var(--mono)}
+.tile .sub{font-size:11px;color:var(--t3);margin-top:2px}
+.tile.pos .val{color:var(--green)}.tile.neg .val{color:var(--red)}.tile.warn .val{color:var(--amber)}
+
+/* Cards */
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:10px;padding:1rem 1.2rem;margin-top:.85rem}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid var(--b1);flex-wrap:wrap;gap:6px}
+.card-hdr h3{font-size:13px;font-weight:600;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+.card-hdr a{font-size:11px;color:var(--acc);text-decoration:none;font-family:var(--mono)}
+
+/* Rows */
+.row{display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0;border-bottom:1px solid var(--b1);font-size:12px;gap:10px}
+.row:last-child{border-bottom:none}
+.rk{color:var(--t2);flex-shrink:0}.rv{font-weight:500;text-align:right;font-family:var(--mono)}
+.pos{color:var(--green)}.neg{color:var(--red)}.warn{color:var(--amber)}
+
+/* Tags */
+.tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:99px;margin-left:5px;font-weight:500;border:1px solid;font-family:var(--mono)}
+.tg{background:var(--gbg);color:var(--green);border-color:var(--gbr)}
+.tr{background:var(--rbg);color:var(--red);border-color:var(--rbr)}
+.ta{background:var(--abg);color:var(--amber);border-color:var(--abr)}
+.tb{background:var(--bbg);color:var(--blue);border-color:var(--bbr)}
+.ts{background:var(--s2);color:var(--t2);border-color:var(--b2)}
+
+/* Alert boxes */
+.alert-r{background:var(--rbg);border:1px solid var(--rbr);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--red);font-family:var(--mono);line-height:1.8;margin-bottom:10px}
+.alert-g{background:var(--gbg);border:1px solid var(--gbr);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--green);font-family:var(--mono);margin-bottom:10px}
+.info-box{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:12px}
+
+/* Verdict */
+.verdict{display:flex;align-items:center;gap:12px;padding:13px 17px;border-radius:8px;font-size:13px;font-weight:600;margin-top:1rem;border:1px solid}
+.verdict.go{background:var(--gbg);color:var(--green);border-color:var(--gbr)}
+.verdict.maybe{background:var(--abg);color:var(--amber);border-color:var(--abr)}
+.verdict.pass{background:var(--rbg);color:var(--red);border-color:var(--rbr)}
+.vdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.vdot.go{background:var(--green)}.vdot.maybe{background:var(--amber)}.vdot.pass{background:var(--red)}
+
+/* Slider + number input combo */
+.adj{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.adj label{font-size:12px;color:var(--t2);width:170px;flex-shrink:0}
+.adj input[type=range]{flex:1;accent-color:var(--acc);cursor:pointer;height:6px;border-radius:3px}
+.adj input[type=number]{width:100px;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:7px 10px;color:var(--acc);font-family:var(--mono);font-size:13px;font-weight:500;outline:none;text-align:right;-moz-appearance:textfield}
+.adj input[type=number]:focus{border-color:var(--acc)}
+.adj input[type=number]::-webkit-outer-spin-button,.adj input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+
+/* Divider */
+.div{height:1px;background:var(--b1);margin:.75rem 0}
+
+/* Pills row */
+.pills{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.pp{display:inline-flex;align-items:center;gap:4px;background:var(--s2);border:1px solid var(--b1);border-radius:99px;padding:3px 10px;font-size:11px;color:var(--t2);font-family:var(--mono)}
+
+/* Action buttons */
+.act-row{display:flex;gap:8px;margin-top:1.1rem;flex-wrap:wrap}
+.act-btn{background:var(--s1);border:1px solid var(--b2);border-radius:6px;color:var(--t2);font-size:12px;padding:8px 14px;cursor:pointer;font-family:var(--sans);text-decoration:none;display:inline-block;transition:all .15s}
+.act-btn:hover{border-color:var(--acc);color:var(--acc)}
+
+/* Amortization */
+.am-hdr{font-size:11px;color:var(--t2);margin:14px 0 6px;font-family:var(--mono)}
+.am-wrap{overflow-x:auto}
+.am-table{width:100%;border-collapse:collapse;font-size:11.5px;font-family:var(--mono)}
+.am-table th{font-size:10px;color:var(--t3);font-weight:500;text-align:left;padding:5px 8px;border-bottom:1px solid var(--b1);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.am-table th.r,.am-table td.r{text-align:right}
+.am-table td{padding:5px 8px;border-bottom:1px solid var(--b1);color:var(--t1);white-space:nowrap}
+.am-table tr:last-child td{border-bottom:none}
+.am-table tr:hover td{background:var(--s2)}
+.am-table .pos{color:var(--green)}.am-table .neg{color:var(--red)}
+.am-table tfoot td{color:var(--t2);font-size:10px;border-top:1px solid var(--b2)}
+
+/* Loading / error */
+.loading{display:flex;flex-direction:column;gap:8px;padding:18px;background:var(--s1);border:1px solid var(--b1);border-radius:8px;margin-top:1rem;font-family:var(--mono);font-size:12px;color:var(--t2)}
+.loading-top{display:flex;align-items:center;gap:10px}
+.spin{width:14px;height:14px;border:2px solid var(--b2);border-top-color:var(--acc);border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+.step{font-size:11px;color:var(--t3);padding:2px 0}
+.step.done{color:var(--green)}.step.act{color:var(--acc)}
+.err-box{background:var(--rbg);border:1px solid var(--rbr);border-radius:8px;padding:16px;font-size:12px;color:var(--red);font-family:var(--mono);line-height:1.8;margin-top:1rem}
+.ph{text-align:center;padding:4rem 1rem;color:var(--t3);font-size:13px;line-height:2}
+.ph .big{font-size:36px;margin-bottom:12px}
+
+/* Highlight tile for lender */
+.lender-tile{background:var(--s2);border:1px solid var(--abr);border-radius:8px;padding:12px 14px}
+.lender-tile .lbl{font-size:10px;color:var(--amber);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;font-family:var(--mono)}
+.lender-tile .val{font-size:18px;font-weight:600;color:var(--amber);font-family:var(--mono)}
+.lender-tile .sub{font-size:11px;color:var(--t3);margin-top:2px}
+
+@media(max-width:600px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(2,1fr)}.adj label{width:115px}body{padding:1rem .85rem 5rem}}
+.ci-input{background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:7px 9px;color:var(--t1);font-family:var(--mono);font-size:11px;outline:none;width:100%}
+.ci-input:focus{border-color:var(--acc)}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="hdr">
+  <div>
+    <div class="htitle">🏘️ Cleveland <em>Deal</em> Analyzer</div>
+    <div class="hsub">Cuyahoga County · Private Money + $5K Reserve · Land Contract Exit · Cents Precision</div>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+    <span class="pill g">Sub $50K Strategy</span>
+    <span class="pill a" id="apiStatus">⚙ Setup required</span>
+  </div>
+</div>
+
+<!-- API Key Setup -->
+<div class="api-panel" id="apiPanel">
+  <h3>⚙ One-time setup — Anthropic API key</h3>
+  <p>Get a free key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → Create Key. Add $5 in credits — covers ~200 analyses at ~$0.02 each. Your key saves permanently in your browser.</p>
+  <div class="api-row">
+    <input type="password" id="keyIn" placeholder="sk-ant-api03-..." onkeydown="if(event.key==='Enter')saveKey()"/>
+    <button onclick="saveKey()">Save & Start</button>
+  </div>
+  <div class="api-saved" id="keySaved" style="display:none">✓ Key saved — ready to analyze deals</div>
+</div>
+
+<!-- Key active bar -->
+<div class="key-bar" id="keyBar" style="display:none">
+  <span>✓ Claude API key active — <span id="keyHint"></span></span>
+  <button onclick="resetKey()">Change key</button>
+</div>
+
+<!-- ATTOM Key Setup -->
+<div class="api-panel" id="attomPanel" style="border-color:var(--bbr);margin-bottom:1rem">
+  <h3 style="color:var(--blue)">🏠 ATTOM Data API key — live county property data</h3>
+  <p>Your ATTOM key auto-fills owner, taxes, beds/baths, sqft, year built, market value and last sale on every analysis. No extension, no copy-paste, no MyPlace browsing needed.</p>
+  <div class="api-row">
+    <input type="password" id="attomKeyIn" placeholder="Your ATTOM API key..." onkeydown="if(event.key==='Enter')saveAttomKey()"/>
+    <button onclick="saveAttomKey()" style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:9px 16px;font-size:12px;font-weight:600;cursor:pointer">Save</button>
+  </div>
+  <div class="api-saved" id="attomKeySaved" style="display:none">✓ ATTOM key saved — live county data enabled</div>
+</div>
+
+<!-- ATTOM active bar -->
+<div class="key-bar" id="attomKeyBar" style="display:none;border-color:var(--bbr);background:var(--bbg)">
+  <span style="color:var(--blue)">✓ ATTOM key active — <span id="attomKeyHint"></span></span>
+  <button onclick="resetAttomKey()" style="border-color:var(--bbr);color:var(--blue)">Change</button>
+</div>
+
+<!-- Search -->
+<div class="srch">
+  <input type="text" id="addrIn" placeholder="🔍  Enter any Cuyahoga County address…" onkeydown="if(event.key==='Enter')analyze()"/>
+  <button id="goBtn" onclick="analyze()">Analyze Deal →</button>
+</div>
+
+<!-- Results -->
+<!-- COUNTY DATA MANUAL INPUT PANEL -->
+<div id="countyPanel" class="card" style="border-color:var(--abr);margin-bottom:1rem">
+  <div class="card-hdr">
+    <h3>🏛️ County data <span class="tag tg">ATTOM auto-filled</span> <span class="tag ta">Add delinquency from MyPlace</span></h3>
+    <a href="https://myplace.cuyahogacounty.gov/" target="_blank" style="color:var(--acc);font-size:11px;font-family:var(--mono)">MyPlace — Taxes By Year ↗</a>
+  </div>
+  <!-- PASTE BOX -->
+  <div style="margin-bottom:14px">
+    <div style="font-size:11px;color:var(--acc);font-family:var(--mono);font-weight:500;margin-bottom:6px">⚡ Paste MyPlace data here — all fields fill instantly</div>
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <textarea id="pasteBox" rows="4" placeholder="Paste everything the extension gives you from MyPlace here. All fields auto-fill instantly on paste..." style="flex:1;background:var(--s2);border:1px solid var(--acc);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:11px;outline:none;resize:vertical;line-height:1.6" onpaste="setTimeout(parseAndFill,80)" oninput="setTimeout(parseAndFill,80)"></textarea>
+      <button id="parseBtn" onclick="parseAndFill()" style="background:var(--acc);color:#000;border:none;border-radius:6px;padding:10px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;align-self:flex-start;font-family:var(--sans)">⚡ Parse</button>
+    </div>
+    <div id="parseStatus" style="font-size:11px;font-family:var(--mono);margin-top:5px;min-height:16px"></div>
+  </div>
+  <div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-bottom:12px">Or fill in manually below — all deal math updates instantly as you type.</div>
+
+  <div class="g2" style="gap:10px">
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">👤 Owner name</div>
+      <input type="text" id="ci_owner" placeholder="e.g. SMITH, JOHN" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">📋 Parcel ID</div>
+      <input type="text" id="ci_parcel" placeholder="e.g. 133-09-025" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🏠 Auditor market value ($)</div>
+      <input type="number" id="ci_value" placeholder="e.g. 45000" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🏛️ Annual taxes ($)</div>
+      <input type="number" id="ci_taxes" placeholder="e.g. 1200.00" step="0.01" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🚨 Delinquent taxes ($)</div>
+      <input type="number" id="ci_delinq_tax" placeholder="0.00 if current" step="0.01" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">💢 Penalties ($)</div>
+      <input type="number" id="ci_penalties" placeholder="0.00" step="0.01" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">📈 Interest ($)</div>
+      <input type="number" id="ci_interest" placeholder="0.00" step="0.01" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">⚡ Special assessments ($)</div>
+      <input type="number" id="ci_special" placeholder="0.00" step="0.01" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+  </div>
+
+  <div class="g2" style="gap:10px;margin-top:10px">
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">📅 Delinquent years</div>
+      <input type="text" id="ci_delinq_years" placeholder="e.g. 2023, 2024" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🏗️ Property type / style</div>
+      <input type="text" id="ci_style" placeholder="e.g. Single Family / Bungalow" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🛏️ Bedrooms</div>
+      <input type="number" id="ci_beds" placeholder="e.g. 3" min="0" max="20" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🚿 Bathrooms</div>
+      <input type="number" id="ci_baths" placeholder="e.g. 1" min="0" max="10" step="0.5" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">📐 Total living area sqft</div>
+      <input type="number" id="ci_sqft" placeholder="Total all floors e.g. 1400" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">📅 Year built</div>
+      <input type="number" id="ci_yearbuilt" placeholder="e.g. 1925" min="1800" max="2026" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+  </div>
+
+  <div class="g2" style="gap:10px;margin-top:10px">
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">📋 Land use description</div>
+      <input type="text" id="ci_landuse" placeholder="e.g. 1-FAMILY PLATTED LOT" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">📐 Zoning code / use</div>
+      <input type="text" id="ci_zoning" placeholder="e.g. R1 / Residential" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">💧 Water / Sewer</div>
+      <input type="text" id="ci_utilities" placeholder="e.g. Public / Public" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🚗 Garage / Basement</div>
+      <input type="text" id="ci_garage" placeholder="e.g. Detached 1-car / Yes" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🌡️ Heat type</div>
+      <input type="text" id="ci_heat" placeholder="e.g. Forced Air" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🌱 Lot sqft / Acreage</div>
+      <input type="text" id="ci_lot" placeholder="e.g. 4500 / 0.10 acres" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+  </div>
+
+  <!-- FULL TRANSFER HISTORY -->
+  <div style="margin-top:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em">📜 Full transfer / sale history</div>
+      <button onclick="addSaleRow()" style="background:var(--gbg);border:1px solid var(--gbr);border-radius:4px;padding:3px 10px;color:var(--green);font-size:11px;cursor:pointer;font-family:var(--sans)">+ Add sale</button>
+    </div>
+    <div id="salesRows">
+      <div class="sale-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center">
+        <input type="text" placeholder="Date (e.g. Oct 2019)" class="ci-input sr-date" oninput="updateCounty()">
+        <input type="text" placeholder="Price (e.g. $15,000)" class="ci-input sr-price" oninput="updateCounty()">
+        <input type="text" placeholder="Grantor" class="ci-input sr-grantor" oninput="updateCounty()">
+        <input type="text" placeholder="Grantee" class="ci-input sr-grantee" oninput="updateCounty()">
+        <button onclick="this.closest('.sale-row').remove();updateCounty()" style="background:var(--rbg);border:1px solid var(--rbr);border-radius:4px;padding:3px 8px;color:var(--red);font-size:11px;cursor:pointer">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FULL PERMITS -->
+  <div style="margin-top:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em">🔨 Permits on record</div>
+      <button onclick="addPermitRow()" style="background:var(--gbg);border:1px solid var(--gbr);border-radius:4px;padding:3px 10px;color:var(--green);font-size:11px;cursor:pointer;font-family:var(--sans)">+ Add permit</button>
+    </div>
+    <div id="permitRows">
+      <div class="permit-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center">
+        <input type="text" placeholder="Date" class="ci-input pr-date" oninput="updateCounty()">
+        <input type="text" placeholder="Type (e.g. Electrical)" class="ci-input pr-type" oninput="updateCounty()">
+        <input type="text" placeholder="Description" class="ci-input pr-desc" oninput="updateCounty()">
+        <input type="text" placeholder="Status" class="ci-input pr-status" oninput="updateCounty()">
+        <button onclick="this.closest('.permit-row').remove();updateCounty()" style="background:var(--rbg);border:1px solid var(--rbr);border-radius:4px;padding:3px 8px;color:var(--red);font-size:11px;cursor:pointer">✕</button>
+      </div>
+    </div>
+  </div>
+
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🌊 Flood zone</div>
+      <input type="text" id="ci_flood" placeholder="e.g. X (no flood risk)" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🏷️ Tax abatement</div>
+      <input type="text" id="ci_abatement" placeholder="e.g. None or describe" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">🏢 Property class</div>
+      <input type="text" id="ci_propclass" placeholder="e.g. R (Residential)" oninput="updateCounty()" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none">
+    </div>
+  </div>
+
+  <!-- Flags row -->
+  <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px">
+    <label style="display:flex;align-items:center;gap:6px;color:var(--t2);cursor:pointer"><input type="checkbox" id="ci_foreclosure" onchange="updateCounty()"> Foreclosure</label>
+    <label style="display:flex;align-items:center;gap:6px;color:var(--t2);cursor:pointer"><input type="checkbox" id="ci_cert_pending" onchange="updateCounty()"> Cert. Pending</label>
+    <label style="display:flex;align-items:center;gap:6px;color:var(--t2);cursor:pointer"><input type="checkbox" id="ci_cert_sold" onchange="updateCounty()"> Cert. Sold</label>
+    <label style="display:flex;align-items:center;gap:6px;color:var(--t2);cursor:pointer"><input type="checkbox" id="ci_payment_plan" onchange="updateCounty()"> Payment Plan</label>
+    <label style="display:flex;align-items:center;gap:6px;color:var(--t2);cursor:pointer"><input type="checkbox" id="ci_homestead" onchange="updateCounty()"> Homestead</label>
+    <label style="display:flex;align-items:center;gap:6px;color:var(--t2);cursor:pointer"><input type="checkbox" id="ci_ooc" onchange="updateCounty()"> Owner Occ. Credit</label>
+  </div>
+
+  <div style="margin-top:12px">
+    <div style="font-size:10px;color:var(--t2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">📝 Tax notes / additional info</div>
+    <textarea id="ci_notes" placeholder="Any additional notes from MyPlace..." oninput="updateCounty()" rows="2" style="width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:6px;padding:8px 10px;color:var(--t1);font-family:var(--mono);font-size:12px;outline:none;resize:vertical"></textarea>
+  </div>
+
+  <button onclick="clearCounty()" style="margin-top:10px;background:transparent;border:1px solid var(--b2);border-radius:6px;padding:6px 14px;color:var(--t3);font-size:11px;cursor:pointer;font-family:var(--sans)">🗑️ Clear county data</button>
+</div>
+
+<div id="out">
+  <div class="ph">
+    <div class="big">🏚️</div>
+    Enter a Cuyahoga County address above and hit Analyze Deal<br>
+    Then fill in the county data fields above from MyPlace for 100% accurate results<br>
+    🏛️ Deep tax analysis · 💰 Private money math · 📊 Amortization to the cent<br>
+    💵 Lender returns · 📝 Land contract exit
+  </div>
+</div>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────────
+const RESERVE = 5000;
+const SERVICING = 65; // Monthly loan servicing fee
+
+// Estimate cash-value insurance based on PM loan amount
+// Cash-value dwelling policy for Cleveland sub-$50K = roughly 1.2%–1.8% of insured value annually
+function insEst(loanAmt) {
+  const low = Math.round(loanAmt * 0.012 / 12);
+  const high = Math.round(loanAmt * 0.018 / 12);
+  return { low, high, midLow: low, midHigh: high };
+}
+let apiKey = '';
+let S = {};
+let COUNTY = {}; // Stores all county panel inputs — always overrides AI in render()
+
+function readCountyPanel() {
+  // Read every county field into COUNTY object
+  const g = id => { const el=document.getElementById(id); return el?el.value.trim():''; };
+  const gf = id => { const el=document.getElementById(id); return el?parseFloat(el.value)||0:0; };
+  const gc = id => { const el=document.getElementById(id); return el?el.checked:false; };
+
+  COUNTY = {
+    owner:        g('ci_owner'),
+    parcelId:     g('ci_parcel').replace(/[^0-9\-]/g,''),
+    mktVal:       gf('ci_value'),
+    taxes:        gf('ci_taxes'),
+    delinqTax:    gf('ci_delinq_tax'),
+    penalties:    gf('ci_penalties'),
+    interest:     gf('ci_interest'),
+    special:      gf('ci_special'),
+    delinqYears:  g('ci_delinq_years').split(',').map(s=>s.trim()).filter(Boolean),
+    style:        g('ci_style'),
+    beds:         parseInt(g('ci_beds'))||0,
+    baths:        parseFloat(g('ci_baths'))||0,
+    sqft:         parseInt((g('ci_sqft')||'').replace(/[^0-9]/g,''))||0,
+    yearBuilt:    parseInt(g('ci_yearbuilt'))||0,
+    lot:          g('ci_lot'),
+    heat:         g('ci_heat'),
+    garage:       g('ci_garage'),
+    landuse:      g('ci_landuse'),
+    zoning:       g('ci_zoning'),
+    utilities:    g('ci_utilities'),
+    flood:        g('ci_flood'),
+    abatement:    g('ci_abatement'),
+    propclass:    g('ci_propclass'),
+    notes:        g('ci_notes'),
+    foreclosure:  gc('ci_foreclosure'),
+    certPending:  gc('ci_cert_pending'),
+    certSold:     gc('ci_cert_sold'),
+    paymentPlan:  gc('ci_payment_plan'),
+    homestead:    gc('ci_homestead'),
+    ooc:          gc('ci_ooc'),
+  };
+  COUNTY.delinqTotal = COUNTY.delinqTax + COUNTY.penalties + COUNTY.interest + COUNTY.special;
+
+  // Read sale rows
+  COUNTY.sales = [];
+  document.querySelectorAll('.sale-row').forEach(row => {
+    const date    = row.querySelector('.sr-date')?.value.trim()||'';
+    const price   = row.querySelector('.sr-price')?.value.trim()||'';
+    const grantor = row.querySelector('.sr-grantor')?.value.trim()||'';
+    const grantee = row.querySelector('.sr-grantee')?.value.trim()||'';
+    if (date||price||grantor||grantee) {
+      COUNTY.sales.push({date, price:parseInt((price||'0').replace(/[^0-9]/g,''))||0, type:'Warranty Deed', grantor:grantor||'—', grantee:grantee||'—', instrument:'WD'});
+    }
+  });
+
+  // Read permit rows
+  COUNTY.permits = [];
+  document.querySelectorAll('.permit-row').forEach(row => {
+    const date   = row.querySelector('.pr-date')?.value.trim()||'';
+    const type   = row.querySelector('.pr-type')?.value.trim()||'';
+    const desc   = row.querySelector('.pr-desc')?.value.trim()||'';
+    const status = row.querySelector('.pr-status')?.value.trim()||'';
+    if (type||desc) COUNTY.permits.push({date, type:type||'General', description:desc||'—', status:status||'On record', amount:0});
+  });
+}
+
+// Merge COUNTY into S — county always wins
+function applyCountyToS() {
+  if (!S || !S.taxData) return;
+  readCountyPanel();
+  const C = COUNTY;
+
+  if (C.owner)    { S.owner = S.owner||{}; S.owner.name = C.owner; }
+  if (C.parcelId) S.parcelId = C.parcelId;
+  if (C.style)    { const p=C.style.split('/').map(s=>s.trim()); S.style=p[1]||p[0]; S.propertyType=p[0]||S.propertyType; }
+  if (C.beds > 0 && C.baths > 0) S.bedBath = C.beds+'/'+C.baths;
+  else if (C.beds > 0) S.bedBath = C.beds+'/'+(S.bedBath?.split('/')[1]?.trim()||'?');
+  else if (C.baths > 0) S.bedBath = (S.bedBath?.split('/')[0]?.trim()||'?')+'/'+C.baths;
+  if (C.sqft > 0)          S.sqft = C.sqft;
+  if (C.yearBuilt > 1800)  S.yearBuilt = C.yearBuilt;
+  if (C.heat)      S.heat = C.heat;
+  if (C.landuse)   S.landUseDesc = C.landuse;
+  if (C.abatement) S.taxAbatement = C.abatement;
+  if (C.propclass) S.propertyClass = C.propclass;
+  if (C.flood)     S.floodZone = C.flood.replace(/[^A-Z0-9]/gi,'').toUpperCase()||S.floodZone;
+  if (C.garage)    { const p=C.garage.split('/').map(s=>s.trim()); S.garage=p[0]; if(p[1]) S.basement=p[1].toLowerCase().includes('yes'); }
+  if (C.lot)       { const p=C.lot.split('/').map(s=>s.trim()); const lsf=parseInt(p[0].replace(/[^0-9]/g,'')); if(lsf>0) S.lotSqft=lsf; }
+  if (C.zoning)    { const p=C.zoning.split('/').map(s=>s.trim()); if(p[0]) S.zoningCode=p[0]; if(p[1]) S.zoningUse=p[1]; }
+  if (C.utilities) { const p=C.utilities.split('/').map(s=>s.trim()); if(p[0]) S.water=p[0]; if(p[1]) S.sewer=p[1]; }
+  if (C.sales.length > 0)   S.saleHistory = C.sales;
+  if (C.permits.length > 0) S.permits = C.permits;
+
+  // Tax data — always write, no conditionals
+  if (C.mktVal > 0) {
+    S.taxData.auditorMarketValue = C.mktVal;
+    S.taxData.auditorLandValue = Math.round(C.mktVal * 0.18);
+    S.taxData.auditorImprovementValue = Math.round(C.mktVal * 0.82);
+    S.taxData.assessedValue = Math.round(C.mktVal * 0.35);
+  }
+  if (C.taxes > 0) {
+    S.taxData.annualTaxesBaseOnly = C.taxes;
+    S.taxData.firstHalfDue  = Math.round(C.taxes / 2 * 100) / 100;
+    S.taxData.secondHalfDue = Math.round(C.taxes / 2 * 100) / 100;
+    S.taxData.grossTaxBeforeCredits = Math.round(C.taxes * 1.08 * 100) / 100;
+    S.taxData.creditAmount  = Math.round(C.taxes * 0.08 * 100) / 100;
+    S.taxData.taxRate       = C.mktVal > 0 ? parseFloat((C.taxes / C.mktVal * 100).toFixed(3)) : S.taxData.taxRate;
+    S.taxData.countyTaxPortion  = Math.round(C.taxes * 0.222);
+    S.taxData.cityTaxPortion    = Math.round(C.taxes * 0.201);
+    S.taxData.schoolTaxPortion  = Math.round(C.taxes * 0.404);
+    S.taxData.otherTaxPortion   = Math.round(C.taxes * 0.173);
+  }
+  S.taxData.delinquentTaxes     = C.delinqTax;
+  S.taxData.delinquentPenalties = C.penalties;
+  S.taxData.delinquentInterest  = C.interest;
+  S.taxData.delinquentTotal     = C.delinqTotal;
+  S.taxData.specialAssessments  = C.special;
+  S.taxData.annualTaxesWithDelinquent = (C.taxes || S.taxData.annualTaxesBaseOnly) + C.delinqTotal;
+  if (C.delinqYears.length) S.taxData.delinquentYears = C.delinqYears;
+  S.taxData.paymentStatus       = C.delinqTotal > 0 ? 'Delinquent' : (C.taxes > 0 ? 'Current' : S.taxData.paymentStatus);
+  S.taxData.priorYearTaxesClean = C.delinqTotal === 0;
+  S.taxData.taxLienFiled        = C.certSold;
+  S.taxData.certifiedForForfeiture = C.certPending;
+  S.taxData.forfeited           = C.foreclosure;
+  S.taxData.homesteadExemption  = C.homestead;
+  S.taxData.ownerOccupiedCredit = C.ooc;
+  if (C.paymentPlan) S.taxData.taxNotes = 'Owner on delinquent tax payment plan per MyPlace';
+  if (C.notes) S.taxData.taxNotes = C.notes;
+
+  // Red flags
+  S.redFlags = S.redFlags || [];
+  S.redFlags = S.redFlags.filter(f => !f.includes('Delinquent taxes $') && !f.includes('FORECLOSURE') && !f.includes('Tax lien cert'));
+  if (C.delinqTotal > 0) S.redFlags.unshift(`Delinquent taxes $${C.delinqTotal.toFixed(2)} — must be cleared at closing`);
+  if (C.foreclosure)     S.redFlags.push('FORECLOSURE active — title issues likely');
+  if (C.certSold)        S.redFlags.push('Tax lien cert SOLD to 3rd party — contact FIG at 844-729-5436');
+}
+
+// ── Key management ─────────────────────────────────────────────────────
+// ── County manual input handler ───────────────────────────────────────
+function parseAndFill() {
+  const raw = document.getElementById('pasteBox').value;
+  const status = document.getElementById('parseStatus');
+  if (!raw.trim()) { status.textContent='⚠ Nothing pasted'; status.style.color='var(--amber)'; return; }
+  if (!S || !S.taxData) { status.textContent='⚠ Run Analyze Deal first, then paste'; status.style.color='var(--amber)'; return; }
+  status.textContent='⚡ Parsing...'; status.style.color='var(--acc)';
+
+  function get(labels, def='') {
+    for (const lbl of labels) {
+      const r = new RegExp(lbl+'[^\n:]*[:\-]\s*([^\n]+)','i');
+      const m = raw.match(r);
+      if (m && m[1].trim()) return m[1].trim();
+    }
+    return def;
+  }
+  function money(s){ return parseFloat((s||'').replace(/[$,\s]/g,''))||0; }
+  function yn(labels){
+    for(const lbl of labels){
+      const m=raw.match(new RegExp(lbl+'[^\n:]*[:\s]+(Yes|No|Y|N|True|False)','i'));
+      if(m) return /yes|y|true/i.test(m[1]);
+    }
+    return false;
+  }
+  function numOnly(s){ return (s.match(/\d+(\.\d+)?/)||[''])[0]; }
+
+  const owner     = get(['Owner Name','Deeded Owner','Owner','Primary Owner']);
+  const parcel    = get(['Parcel ID','Parcel Number','Parcel','PIN','APN']).replace(/[^0-9\-]/g,'');
+  const mktVal    = money(get(['Market Value','Total Value','Appraised Value','Auditor Value','Certified Total']));
+  const taxes     = money(get(['Annual Tax','Net Tax','Annual Taxes','Current Taxes']))||money(get(['Half Year Tax','Half Year Net']))*2;
+  const delinqTax = money(get(['Delinquent Tax','Prior Year Tax','Back Tax']));
+  const penalties = money(get(['Penalt']));
+  const interest  = money(get(['Interest']));
+  const special   = money(get(['Special Assessment']));
+  const delinqYrs = get(['Delinquent Year','Years Delinquent']);
+  const style     = get(['Style','Property Style','Property Type','Land Use Desc']);
+  const bedsRaw   = get(['Bedrooms','Bedroom','Beds','# Bedrooms','Number of Bedrooms']);
+  const bathsRaw  = get(['Full Baths','Bathrooms','Bathroom','Baths','# Bathrooms','# Full Baths','Number of Full Baths']);
+  const sqft      = numOnly(get(['Total Living Area','Total Liv Area','Adjusted Area','Living Area','Total Sq Ft','Sq Ft','Square Feet','Floor Area']).replace(/,/g,''));
+  const yrBuilt   = get(['Year Built','Built','Yr Built']);
+  const lot       = get(['Lot Size','Lot Area','Lot Sqft','Lot Acreage','Total Acres','Acreage']);
+  const heat      = get(['Heat Type','Heating','Heat']);
+  const garage    = get(['Garage Type','Garage Capacity','Garage']);
+  const landuse   = get(['Land Use Description','Land Use Desc','LUC Description','Use Description']);
+  const zoning    = get(['Zoning Code','Zoning Use','Zoning']);
+  const water     = get(['Water Source','Water']);
+  const sewer     = get(['Sewer Type','Sewer']);
+  const flood     = get(['Flood Zone','Flood']);
+  const abatement = get(['Tax Abatement','Abatement']);
+  const propclass = get(['Property Class','Class']);
+  const notes     = get(['Notes','Additional Info','Note']);
+
+  const map = {
+    ci_owner:owner, ci_parcel:parcel,
+    ci_value:mktVal||'', ci_taxes:taxes||'',
+    ci_delinq_tax:delinqTax||'', ci_penalties:penalties||'',
+    ci_interest:interest||'', ci_special:special||'',
+    ci_delinq_years:delinqYrs, ci_style:style,
+    ci_beds:numOnly(bedsRaw), ci_baths:numOnly(bathsRaw),
+    ci_sqft:sqft, ci_yearbuilt:yrBuilt,
+    ci_lot:lot, ci_heat:heat, ci_garage:garage,
+    ci_landuse:landuse, ci_zoning:zoning,
+    ci_utilities:[water,sewer].filter(Boolean).join(' / '),
+    ci_flood:flood, ci_abatement:abatement,
+    ci_propclass:propclass, ci_notes:notes
+  };
+  let filled=0;
+  for(const [id,val] of Object.entries(map)){
+    const el=document.getElementById(id);
+    if(el&&val){el.value=val;filled++;}
+  }
+
+  document.getElementById('ci_foreclosure').checked  = yn(['Foreclosure']);
+  document.getElementById('ci_cert_pending').checked = yn(['Cert.? Pending','Certificate Pending']);
+  document.getElementById('ci_cert_sold').checked    = yn(['Cert.? Sold','Certificate Sold','Tax Lien Sold']);
+  document.getElementById('ci_payment_plan').checked = yn(['Payment Plan']);
+  document.getElementById('ci_homestead').checked    = yn(['Homestead']);
+  document.getElementById('ci_ooc').checked          = yn(['Owner Occupancy','OOC','Owner-Occupied Credit']);
+
+  // Parse 3 most recent transfers
+  const salesContainer = document.getElementById('salesRows');
+  if(salesContainer){
+    salesContainer.innerHTML='';
+    const lines=raw.split('\n');
+    const transfers=[];
+    let cur={};
+    for(const line of lines){
+      const tl=line.trim();
+      if(!tl){if(cur.date||cur.price||cur.grantor){transfers.push({...cur});cur={};}continue;}
+      if(/date|recorded/i.test(tl)&&!cur.date) cur.date=tl.split(/[:\-]/)[1]?.trim()||'';
+      else if(/price|amount|sale price/i.test(tl)&&!cur.price) cur.price=money(tl.split(/[:\-]/)[1]||'');
+      else if(/grantor|from|seller/i.test(tl)&&!cur.grantor) cur.grantor=tl.split(/[:\-]/)[1]?.trim()||'';
+      else if(/grantee|to\b|buyer/i.test(tl)&&!cur.grantee) cur.grantee=tl.split(/[:\-]/)[1]?.trim()||'';
+    }
+    if(cur.date||cur.price||cur.grantor) transfers.push(cur);
+    const recent=transfers.slice(0,3);
+    if(recent.length>0){
+      recent.forEach(t=>{
+        addSaleRow();
+        const rows=salesContainer.querySelectorAll('.sale-row');
+        const last=rows[rows.length-1];
+        if(t.date)    last.querySelector('.sr-date').value    =t.date;
+        if(t.price)   last.querySelector('.sr-price').value   ='$'+t.price.toLocaleString();
+        if(t.grantor) last.querySelector('.sr-grantor').value =t.grantor;
+        if(t.grantee) last.querySelector('.sr-grantee').value =t.grantee;
+      });
+    } else { addSaleRow(); }
+  }
+
+  // Parse permits
+  const permitContainer=document.getElementById('permitRows');
+  if(permitContainer){
+    permitContainer.innerHTML='';
+    const lines=raw.split('\n');
+    const permits=[];
+    let cur={};
+    for(const line of lines){
+      const tl=line.trim();
+      if(!tl){if(cur.type||cur.desc){permits.push({...cur});cur={};}continue;}
+      if(/permit date|issued/i.test(tl)&&!cur.date) cur.date=tl.split(/[:\-]/)[1]?.trim()||'';
+      else if(/permit type|type/i.test(tl)&&!/property|land|zoning/i.test(tl)&&!cur.type) cur.type=tl.split(/[:\-]/)[1]?.trim()||'';
+      else if(/description|desc/i.test(tl)&&!cur.desc) cur.desc=tl.split(/[:\-]/)[1]?.trim()||'';
+      else if(/status/i.test(tl)&&!cur.status) cur.status=tl.split(/[:\-]/)[1]?.trim()||'';
+    }
+    if(cur.type||cur.desc) permits.push(cur);
+    if(permits.length>0){
+      permits.forEach(p=>{
+        addPermitRow();
+        const rows=permitContainer.querySelectorAll('.permit-row');
+        const last=rows[rows.length-1];
+        if(p.date)   last.querySelector('.pr-date').value  =p.date;
+        if(p.type)   last.querySelector('.pr-type').value  =p.type;
+        if(p.desc)   last.querySelector('.pr-desc').value  =p.desc;
+        if(p.status) last.querySelector('.pr-status').value=p.status;
+      });
+    } else { addPermitRow(); }
+  }
+
+  updateCounty();
+  status.textContent=`✅ Filled ${filled} fields — review below`;
+  status.style.color='var(--green)';
+}
+
+function addSaleRow() {
+  const row = document.createElement('div');
+  row.className = 'sale-row';
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center';
+  row.innerHTML = `<input type="text" placeholder="Date" class="ci-input sr-date" oninput="updateCounty()">
+    <input type="text" placeholder="Price (e.g. $15,000)" class="ci-input sr-price" oninput="updateCounty()">
+    <input type="text" placeholder="Grantor" class="ci-input sr-grantor" oninput="updateCounty()">
+    <input type="text" placeholder="Grantee" class="ci-input sr-grantee" oninput="updateCounty()">
+    <button onclick="this.closest('.sale-row').remove();updateCounty()" style="background:var(--rbg);border:1px solid var(--rbr);border-radius:4px;padding:3px 8px;color:var(--red);font-size:11px;cursor:pointer">✕</button>`;
+  document.getElementById('salesRows').appendChild(row);
+}
+
+function addPermitRow() {
+  const row = document.createElement('div');
+  row.className = 'permit-row';
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center';
+  row.innerHTML = `<input type="text" placeholder="Date" class="ci-input pr-date" oninput="updateCounty()">
+    <input type="text" placeholder="Type" class="ci-input pr-type" oninput="updateCounty()">
+    <input type="text" placeholder="Description" class="ci-input pr-desc" oninput="updateCounty()">
+    <input type="text" placeholder="Status" class="ci-input pr-status" oninput="updateCounty()">
+    <button onclick="this.closest('.permit-row').remove();updateCounty()" style="background:var(--rbg);border:1px solid var(--rbr);border-radius:4px;padding:3px 8px;color:var(--red);font-size:11px;cursor:pointer">✕</button>`;
+  document.getElementById('permitRows').appendChild(row);
+}
+
+function updateCounty() {
+  if (!S || !S.taxData) return;
+  applyCountyToS();
+  render();
+}
+
+function clearCounty() {
+  ['ci_owner','ci_parcel','ci_value','ci_taxes','ci_delinq_tax','ci_penalties','ci_interest','ci_special','ci_delinq_years','ci_style','ci_bedbath','ci_beds','ci_baths','ci_sqft','ci_yearbuilt','ci_notes','ci_landuse','ci_zoning','ci_utilities','ci_garage','ci_heat','ci_lot','ci_lastsale','ci_transfer','ci_permits','ci_flood','ci_abatement','ci_propclass'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['ci_foreclosure','ci_cert_pending','ci_cert_sold','ci_payment_plan','ci_homestead','ci_ooc'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.checked = false;
+  });
+  // Reset sale and permit rows to one empty row each
+  const sr = document.getElementById('salesRows');
+  if (sr) { sr.innerHTML = ''; addSaleRow(); }
+  const pr = document.getElementById('permitRows');
+  if (pr) { pr.innerHTML = ''; addPermitRow(); }
+}
+
+// ── PDF Download ──────────────────────────────────────────────────────
+function downloadPDF() {
+  const s = S;
+  if (!s || !s.taxData) { alert('Run an analysis first.'); return; }
+  const t = s.taxData;
+  const offer = s.offer || 25000;
+  const pmPrin = offer + RESERVE;
+  const pmPmt = pmtCalc(pmPrin, s.pmRate, s.pmTerm);
+  const totalPMPaid = pmPmt * s.pmTerm * 12;
+  const taxMo = t.annualTaxesBaseOnly / 12;
+  const targetLC = pmPmt + 100;
+  const lc30 = loanFromPmt(targetLC, s.lcRate, s.lcAmort, s.lcDown);
+  const cf5 = targetLC - pmPmt - SERVICING;
+  const cfPost = targetLC - SERVICING;
+  const hasD = t.delinquentTotal > 0;
+  const ins = insEst(pmPrin);
+  const buyerTotalLow = targetLC + taxMo + ins.low;
+  const buyerTotalHigh = targetLC + taxMo + ins.high;
+  const lenderCoC = ((totalPMPaid - pmPrin) / pmPrin * 100).toFixed(2);
+  const lenderAnnual = ((totalPMPaid - pmPrin) / pmPrin * 100 / s.pmTerm).toFixed(2);
+
+  // Build amortization rows for PDF
+  function amRows(principal, rate, years) {
+    const p = pmtCalc(principal, rate, years);
+    let bal = principal, rows = '', totI = 0, totP = 0;
+    for (let yr = 1; yr <= years; yr++) {
+      let yI = 0, yP = 0;
+      for (let mo = 0; mo < 12; mo++) {
+        const i = bal * (rate / 100 / 12), pa = Math.min(p - i, bal);
+        yI += i; yP += pa; bal = Math.max(0, bal - pa);
+        if (bal < 0.005) break;
+      }
+      totI += yI; totP += yP;
+      rows += `<tr><td>Year ${yr}</td><td>${c(p*12)}</td><td style="color:#16a34a">${c(yP)}</td><td style="color:#dc2626">${c(yI)}</td><td>${c(Math.max(0,bal))}</td></tr>`;
+      if (bal < 0.005) break;
+    }
+    rows += `<tr style="font-weight:600;border-top:2px solid #333"><td>Totals</td><td>${c(p*years*12)}</td><td style="color:#16a34a">${c(totP)}</td><td style="color:#dc2626">${c(totI)}</td><td>—</td></tr>`;
+    return rows;
+  }
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Deal Analysis — ${s.address}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#1a1a1a;background:#fff;padding:24px}
+  h1{font-size:20px;font-weight:700;margin-bottom:4px}
+  h2{font-size:13px;font-weight:600;background:#1a1a1a;color:#fff;padding:6px 10px;margin:16px 0 8px;border-radius:4px}
+  h3{font-size:11px;font-weight:600;color:#444;margin:12px 0 6px;border-bottom:1px solid #ddd;padding-bottom:4px}
+  .subtitle{font-size:11px;color:#666;margin-bottom:16px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+  .tile{background:#f8f8f8;border:1px solid #e0e0e0;border-radius:6px;padding:10px 12px}
+  .tile .lbl{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+  .tile .val{font-size:16px;font-weight:700;color:#1a1a1a}
+  .tile .sub{font-size:9px;color:#aaa;margin-top:2px}
+  .row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;font-size:11px}
+  .row:last-child{border-bottom:none}
+  .rk{color:#666}.rv{font-weight:500;font-family:monospace}
+  .pos{color:#16a34a}.neg{color:#dc2626}.warn{color:#d97706}
+  table{width:100%;border-collapse:collapse;font-size:10px;font-family:monospace}
+  th{background:#f0f0f0;font-size:9px;font-weight:600;padding:5px 8px;text-align:left;border:1px solid #ddd;text-transform:uppercase}
+  td{padding:4px 8px;border:1px solid #eee}
+  tr:nth-child(even) td{background:#fafafa}
+  .alert-r{background:#fef2f2;border:1px solid #fecaca;border-radius:4px;padding:8px 12px;color:#991b1b;margin:8px 0;font-size:11px}
+  .alert-g{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:8px 12px;color:#15803d;margin:8px 0;font-size:11px}
+  .verdict{padding:10px 14px;border-radius:6px;font-weight:700;font-size:13px;margin:12px 0;border:2px solid}
+  .verdict.go{background:#f0fdf4;color:#15803d;border-color:#16a34a}
+  .verdict.maybe{background:#fffbeb;color:#92400e;border-color:#d97706}
+  .verdict.pass{background:#fef2f2;color:#991b1b;border-color:#dc2626}
+  .blue-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:4px;padding:10px 12px;margin:8px 0}
+  .pill{display:inline-block;background:#f0f0f0;border-radius:99px;padding:2px 8px;font-size:9px;color:#555;margin:2px;font-family:monospace}
+  .footer{margin-top:24px;padding-top:12px;border-top:1px solid #ddd;font-size:9px;color:#aaa;text-align:center}
+  @media print{body{padding:12px}.no-print{display:none}h2{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+  <div>
+    <h1>🏘️ Cleveland Deal Analysis</h1>
+    <div class="subtitle">${s.address} &nbsp;·&nbsp; Generated ${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
+  </div>
+  <div style="text-align:right;font-size:10px;color:#888">
+    <div>Parcel: ${s.parcelId||'—'}</div>
+    <div>Sub $50K Strategy</div>
+    <div>Private Money + Land Contract</div>
+  </div>
+</div>
+
+<div class="verdict ${s.dealScore==='Strong Buy'||s.dealScore==='Buy'?'go':s.dealScore==='Marginal'?'maybe':'pass'}">
+  ${s.dealScore==='Strong Buy'?'🟢':s.dealScore==='Buy'?'✅':s.dealScore==='Marginal'?'🟡':'🔴'} ${s.dealScore} — ${s.dealNote}
+</div>
+
+${(s.redFlags||[]).length?`<div class="alert-r">${s.redFlags.map(f=>`⚠️ ${f}`).join('<br>')}</div>`:''}
+
+<div class="grid4" style="margin:12px 0">
+  <div class="tile"><div class="lbl">Working offer</div><div class="val">${c0(offer)}</div><div class="sub">Your offer</div></div>
+  <div class="tile"><div class="lbl">PM loan total</div><div class="val">${c0(pmPrin)}</div><div class="sub">Offer + $5K reserve</div></div>
+  <div class="tile"><div class="lbl">Annual taxes</div><div class="val">${c(t.annualTaxesBaseOnly)}</div><div class="sub">${c(taxMo)}/mo</div></div>
+  <div class="tile"><div class="lbl" style="${hasD?'color:#dc2626':''}">${hasD?'⚠️ Delinquent':'✅ Tax status'}</div><div class="val" style="${hasD?'color:#dc2626':''}">${hasD?c(t.delinquentTotal):'Clean'}</div><div class="sub">${hasD?'Must clear at closing':'No back taxes'}</div></div>
+</div>
+
+<div style="margin-bottom:8px">
+  ${['📋 '+s.parcelId,'🏗️ '+s.style,'🛏️ '+s.bedBath,'📐 '+(s.sqft||0).toLocaleString()+' sqft','📅 Built '+(s.yearBuilt||'—'),'🌱 '+(s.lotSqft||0).toLocaleString()+' sqft lot','🚗 '+(s.garage||'None'),'🌊 Zone '+s.floodZone,'🔧 '+s.condition].map(p=>`<span class="pill">${p}</span>`).join('')}
+</div>
+
+<div class="grid2">
+<div>
+<h2>🏛️ Tax Analysis</h2>
+${hasD?`<div class="alert-r">🚨 DELINQUENT — must clear at closing<br>Years: ${t.delinquentYears.join(', ')} | Taxes: ${c(t.delinquentTaxes)} | Penalties: ${c(t.delinquentPenalties)} | Interest: ${c(t.delinquentInterest)}<br><strong>Total to clear: ${c(t.delinquentTotal)}</strong></div>`:`<div class="alert-g">✅ No delinquent taxes — record is clean</div>`}
+${[['Auditor market value',c(t.auditorMarketValue)],['Land value',c(t.auditorLandValue)],['Improvement value',c(t.auditorImprovementValue)],['Assessed value (35%)',c(t.assessedValue)],['Millage rate',t.millageRate+' mills'],['Gross before credits',c(t.grossTaxBeforeCredits)],['Credits applied','−'+c(t.creditAmount)],['Net annual taxes','<strong>'+c(t.annualTaxesBaseOnly)+'</strong>'],['Monthly taxes',c(taxMo)+'/mo'],['Tax district',t.taxDistrict],['School district',t.schoolDistrict],['1st half due',c(t.firstHalfDue)+' — '+t.firstHalfDueDate],['2nd half due',c(t.secondHalfDue)+' — '+t.secondHalfDueDate],['Payment status',t.paymentStatus==='Current'?'✅ Current':'🔴 '+t.paymentStatus],['Homestead',t.homesteadExemption?'✅ Yes':'❌ No'],['Owner-occ credit',t.ownerOccupiedCredit?'✅ Yes':'❌ No'],['Tax lien filed',t.taxLienFiled?'🚨 YES':'✅ No'],['Forfeited',t.forfeited?'🚨 YES':'✅ No'],['Cert for forfeiture',t.certifiedForForfeiture?'🟡 YES':'✅ No'],['Special assessments',t.specialAssessments>0?c(t.specialAssessments):'✅ None']].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+
+<h2>🏗️ Property Details</h2>
+${[['Style',s.style],['Bed/Bath · Sqft',s.bedBath+' · '+(s.sqft||0).toLocaleString()+' sqft'],['Year built',s.yearBuilt],['Lot size',(s.lotSqft||0).toLocaleString()+' sqft'],['Stories',s.stories],['Garage',s.garage||'None'],['Basement',s.basement?'Yes':'No'],['Heat',s.heat],['Roof',s.roof],['Construction',s.construction],['Land use',s.landUseDesc||'—'],['Zoning',s.zoningCode+' / '+(s.zoningUse||'—')],['Property class',s.propertyClass||'—'],['Water / Sewer',(s.water||'—')+' / '+(s.sewer||'—')],['Tax abatement',s.taxAbatement||'None'],['Flood zone','Zone '+s.floodZone],['Condition',s.condition]].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+
+<h2>👤 Owner Info</h2>
+${[['Owner',s.owner.name],['Type',s.owner.ownerType],['Mailing address',s.owner.mailingAddress],['Owner-occupied',s.owner.ownerOccupied?'Yes':'No — absentee'],['Years owned',s.owner.yearsOwned+' yrs']].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+
+<h2>📜 Transfer History</h2>
+<table><thead><tr><th>Date</th><th>Price</th><th>Type</th><th>Grantor</th><th>Grantee</th></tr></thead><tbody>
+${(s.saleHistory||[]).map(h=>`<tr><td>${h.date||'—'}</td><td>${h.price>0?c0(h.price):'$0'}</td><td>${h.type||'—'}</td><td>${h.grantor||'—'}</td><td>${h.grantee||'—'}</td></tr>`).join('')}
+</tbody></table>
+
+<h2>🔨 Permits</h2>
+<table><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Status</th></tr></thead><tbody>
+${(s.permits||[]).length?((s.permits||[]).map(p=>`<tr><td>${p.date||'—'}</td><td>${p.type||'—'}</td><td>${p.description||'—'}</td><td>${p.status||'—'}</td></tr>`).join('')):'<tr><td colspan="4">No permits on record</td></tr>'}
+</tbody></table>
+</div>
+
+<div>
+<h2>💼 Private Money Loan</h2>
+<div class="alert-g">$5,000 reserve included in every loan</div>
+${[['Purchase offer',c(offer)],['Reserve fund','+ '+c(RESERVE)],['Total PM loan','<strong>'+c(pmPrin)+'</strong>'],['Interest rate',s.pmRate+'%'],['Term',s.pmTerm+' years fully amortized'],['Monthly payment (P+I)','<strong style="color:#dc2626">−'+c(pmPmt)+'/mo</strong>'],['Total paid over '+s.pmTerm+'yr',c(totalPMPaid)],['Total interest to lender',c(totalPMPaid-pmPrin)]].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+
+<h3>PM Loan Amortization</h3>
+<table><thead><tr><th>Year</th><th>Annual Pmt</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead>
+<tbody>${amRows(pmPrin,s.pmRate,s.pmTerm)}</tbody></table>
+
+<h2>💵 Lender Cash-on-Cash Return</h2>
+${[['Capital invested',c(pmPrin)],['Monthly income received',c(pmPmt)+'/mo'],['Total received over '+s.pmTerm+'yr',c(totalPMPaid)],['Total profit (interest)',c(totalPMPaid-pmPrin)],['Total cash-on-cash',lenderCoC+'%'],['Annualized cash-on-cash',lenderAnnual+'%/yr'],['Security',s.address+' — lender holds the note']].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+
+<h2>💳 Monthly Cashflow</h2>
+${[['PM payment to lender','<span style="color:#dc2626">−'+c(pmPmt)+'/mo</span>'],['Loan servicing fee','<span style="color:#dc2626">−'+c(SERVICING)+'/mo</span>'],['Total your monthly out','<strong style="color:#dc2626">−'+c(pmPmt+SERVICING)+'/mo</strong>'],['LC payment from buyer','<strong style="color:#16a34a">+'+c(targetLC)+'/mo</strong>'],['Net cashflow yrs 1–'+s.pmTerm,'<strong style="color:'+(cf5>=0?'#16a34a':'#dc2626')+'">'+(cf5>=0?'+':'−')+c(Math.abs(cf5))+'/mo</strong>'],['Net cashflow yr '+(s.pmTerm+1)+'+','<strong style="color:#16a34a">+'+c(cfPost)+'/mo</strong>'],['Property taxes',c(taxMo)+'/mo (buyer pays per LC)'],['Insurance est.',c(ins.low)+' – '+c(ins.high)+'/mo (buyer pays)'],['Buyer total est.',c(buyerTotalLow)+' – '+c(buyerTotalHigh)+'/mo']].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+
+<h2>📝 Land Contract Exit (${s.lcAmort}yr @ ${s.lcRate}%)</h2>
+${[['Down payment collected',c(s.lcDown)],['Buyer monthly (P+I)','<strong style="color:#16a34a">+'+c(targetLC)+'/mo</strong>'],['LC sale price',c(lc30.price)],['Loan amount',c(lc30.loan)],['Buyer total paid over '+s.lcAmort+'yr',c(lc30.total)],['Your net profit (LC in − PM out)',c(lc30.total-totalPMPaid)],['Market rent',c(s.marketRentMonthly)+'/mo'],['Buyer saves vs renting',c(Math.max(0,(s.marketRentMonthly*s.lcAmort*12)-lc30.total))+' over '+s.lcAmort+'yr']].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+
+<h3>LC Amortization (${s.lcAmort}yr)</h3>
+<table><thead><tr><th>Year</th><th>Annual Pmt</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead>
+<tbody>${amRows(lc30.loan,s.lcRate,s.lcAmort)}</tbody></table>
+
+<h2>🔍 Comparable Sales</h2>
+<table><thead><tr><th>Address</th><th>Price</th><th>Sqft</th><th>Bed/Bath</th><th>Sold</th><th>DOM</th></tr></thead><tbody>
+${(s.comps||[]).map(co=>`<tr><td>${co.address}</td><td>${c0(co.price)}</td><td>${(co.sqft||0).toLocaleString()}</td><td>${co.bed}/${co.bath}</td><td>${co.soldDate||'—'}</td><td>${co.dom}d</td></tr>`).join('')}
+</tbody></table>
+</div>
+</div>
+
+<div class="footer">
+  Cleveland Deal Analyzer &nbsp;·&nbsp; ${s.address} &nbsp;·&nbsp; ${new Date().toLocaleDateString()} &nbsp;·&nbsp; 
+  Always verify taxes and delinquency at myplace.cuyahogacounty.gov before closing
+</div>
+
+<div class="no-print" style="margin-top:20px;text-align:center">
+  <button onclick="window.print()" style="background:#1a1a1a;color:#fff;border:none;border-radius:6px;padding:10px 24px;font-size:13px;font-weight:600;cursor:pointer">🖨️ Print / Save as PDF</button>
+</div>
+
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (s.address||'deal-analysis').replace(/[^a-z0-9]/gi,'-').toLowerCase()+'.html';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+let attomKey = '';
+
+function loadKey() {
+  const k = localStorage.getItem('cda_k') || localStorage.getItem('cuyahoga_deal_analyzer_key') || '';
+  if (k) { apiKey = k; }
+  // Auto-load ATTOM key
+  const ak = localStorage.getItem('attom_k') || 'fdf7564387e59ea17946484e30cbc33f';
+  if (ak) { 
+    attomKey = ak; 
+    try { localStorage.setItem('attom_k', ak); } catch(e) {}
+  }
+  if (k) showKeyBar();
+}
+function showKeyBar() {
+  document.getElementById('apiPanel').style.display = 'none';
+  document.getElementById('apiStatus').textContent = '✓ Ready';
+  document.getElementById('apiStatus').className = 'pill g';
+  document.getElementById('keyBar').style.display = 'flex';
+  document.getElementById('keyHint').textContent = apiKey.substring(0,14)+'...'+apiKey.slice(-4);
+  if (attomKey) {
+    document.getElementById('attomKeyBar').style.display='flex';
+    document.getElementById('attomKeyHint').textContent = attomKey.substring(0,8)+'...'+attomKey.slice(-4);
+  }
+}
+function saveKey() {
+  const k = document.getElementById('keyIn').value.trim();
+  if (!k.startsWith('sk-')) { alert('Key must start with sk-'); return; }
+  apiKey = k;
+  try { localStorage.setItem('cda_k', k); localStorage.setItem('cuyahoga_deal_analyzer_key', k); } catch(e) {}
+  document.getElementById('keySaved').style.display = 'block';
+  showKeyBar();
+}
+function saveAttomKey() {
+  const k = document.getElementById('attomKeyIn').value.trim();
+  if (!k) { alert('Enter your ATTOM API key'); return; }
+  attomKey = k;
+  try { localStorage.setItem('attom_k', k); } catch(e) {}
+  document.getElementById('attomKeySaved').style.display = 'block';
+  showKeyBar();
+}
+function resetAttomKey() {
+  if (!confirm('Remove ATTOM API key?')) return;
+  attomKey = '';
+  try { localStorage.removeItem('attom_k'); } catch(e) {}
+  document.getElementById('attomKeyBar').style.display = 'none';
+  document.getElementById('attomPanel').style.display = 'block';
+  document.getElementById('attomKeySaved').style.display = 'none';
+}
+function resetKey() {
+  if (!confirm('Remove saved API key?')) return;
+  apiKey = '';
+  try { localStorage.removeItem('cda_k'); localStorage.removeItem('cuyahoga_deal_analyzer_key'); } catch(e) {}
+  document.getElementById('keyBar').style.display = 'none';
+  document.getElementById('apiPanel').style.display = 'block';
+  document.getElementById('apiStatus').textContent = '⚙ Setup required';
+  document.getElementById('apiStatus').className = 'pill a';
+}
+
+// ── Math helpers ───────────────────────────────────────────────────────
+function pmtCalc(p, r, y) {
+  if (!p || !y) return 0;
+  const mr = r / 100 / 12, n = y * 12;
+  if (mr === 0) return p / n;
+  return p * (mr * Math.pow(1 + mr, n)) / (Math.pow(1 + mr, n) - 1);
+}
+function loanFromPmt(targetPmt, r, y, down) {
+  const mr = r / 100 / 12, n = y * 12;
+  const loan = mr === 0 ? targetPmt * n : targetPmt * (1 - Math.pow(1 + mr, -n)) / mr;
+  return { loan, price: loan + down, total: down + targetPmt * n };
+}
+function c(n) { return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function c0(n) { return '$' + Math.round(Math.abs(n)).toLocaleString(); }
+function sgn(n) { return (n >= 0 ? '+' : '−') + c(Math.abs(n)); }
+function pct(n) { return n.toFixed(2) + '%'; }
+function fmtd(s) { try { return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch(e) { return s || '—'; } }
+
+// ── MyPlace URL builder ────────────────────────────────────────────────
+// MyPlace only supports direct parcel links via btoa-encoded parcel ID.
+// If parcel ID is not a confirmed real 9-digit number, fall back to homepage.
+function mpURL(parcelId, section, address) {
+  const raw = (parcelId || '').replace(/-/g, '').trim();
+  const isRealParcel = (raw.length === 8 || raw.length === 9) && !isNaN(raw);
+  if (isRealParcel) {
+    const b = btoa(raw);
+    const map = {
+      general:   `https://myplace.cuyahogacounty.gov/${b}?city=OTk=&searchBy=UGFyY2Vs&dataRequested=R2VuZXJhbCBJbmZvcm1hdGlvbg==`,
+      taxes:     `https://myplace.cuyahogacounty.gov/${b}?city=OTk=&searchBy=UGFyY2Vs&dataRequested=VGF4ZXMgQnkgWWVhcg==`,
+      transfers: `https://myplace.cuyahogacounty.gov/${b}?city=OTk=&searchBy=UGFyY2Vs&dataRequested=VHJhbnNmZXJz`,
+      building:  `https://myplace.cuyahogacounty.gov/${b}?city=OTk=&searchBy=UGFyY2Vs&dataRequested=QnVpbGRpbmcgSW5mb3JtYXRpb24=`,
+      permits:   `https://myplace.cuyahogacounty.gov/${b}?city=OTk=&searchBy=UGFyY2Vs&dataRequested=UGVybWl0cw==`,
+    };
+    return map[section] || map.general;
+  }
+  // No valid parcel ID — go to MyPlace homepage, user searches by address
+  return 'https://myplace.cuyahogacounty.gov/';
+}
+
+// ── Amortization table builder ─────────────────────────────────────────
+function amTable(principal, rate, years, label) {
+  const p = pmtCalc(principal, rate, years);
+  let bal = principal, rows = '', totI = 0, totP = 0;
+  for (let yr = 1; yr <= years; yr++) {
+    let yI = 0, yP = 0;
+    for (let mo = 0; mo < 12; mo++) {
+      const i = bal * (rate / 100 / 12), pa = Math.min(p - i, bal);
+      yI += i; yP += pa; bal = Math.max(0, bal - pa);
+      if (bal < 0.005) break;
+    }
+    totI += yI; totP += yP;
+    rows += `<tr><td>Year ${yr}</td><td class=r>${c(p * 12)}</td><td class="r pos">${c(yP)}</td><td class="r neg">${c(yI)}</td><td class=r>${c(Math.max(0, bal))}</td></tr>`;
+    if (bal < 0.005) break;
+  }
+  return `<div class="am-hdr">${label} &nbsp;·&nbsp; ${c(principal)} @ ${rate}% &nbsp;·&nbsp; ${years}yr &nbsp;·&nbsp; <strong>${c(p)}/mo</strong></div>
+<div class=am-wrap><table class=am-table>
+<thead><tr><th>Year</th><th class=r>Annual pmt</th><th class=r>Principal ↓</th><th class=r>Interest</th><th class=r>Balance</th></tr></thead>
+<tbody>${rows}</tbody>
+<tfoot><tr><td>Totals</td><td class=r>${c(p * years * 12)}</td><td class="r pos">${c(totP)}</td><td class="r neg">${c(totI)}</td><td class=r>—</td></tr></tfoot>
+</table></div>`;
+}
+
+// ── Slider + number input sync ─────────────────────────────────────────
+function wireAdj(slId, inId, key) {
+  const sl = document.getElementById(slId), inp = document.getElementById(inId);
+  if (!sl || !inp) return;
+
+  // Slider → instant update (smooth dragging)
+  sl.oninput = () => {
+    inp.value = parseFloat(sl.value);
+    S[key] = parseFloat(sl.value);
+    render();
+  };
+
+  // Typing → only update S, never re-render mid-type (stops page jumping)
+  inp.oninput = () => {
+    const raw = parseFloat(inp.value);
+    if (!isNaN(raw) && raw > 0) {
+      const clamped = Math.min(parseFloat(sl.max), Math.max(parseFloat(sl.min), raw));
+      sl.value = clamped;
+      S[key] = raw; // store exact typed value
+    }
+  };
+
+  // On Enter key → apply and render
+  inp.onkeydown = (e) => {
+    if (e.key === 'Enter') {
+      inp.blur();
+    }
+  };
+
+  // On blur (click away or Enter) → render with final value
+  inp.onblur = () => {
+    const raw = parseFloat(inp.value);
+    if (isNaN(raw) || raw <= 0) {
+      inp.value = S[key] || sl.value;
+      return;
+    }
+    S[key] = raw;
+    const clamped = Math.min(parseFloat(sl.max), Math.max(parseFloat(sl.min), raw));
+    sl.value = clamped;
+    render();
+  };
+}
+
+// ── API call ───────────────────────────────────────────────────────────
+async function fetchAttom(address) {
+  const addr1 = address.replace(/,.*$/,'').trim();
+  const addr2 = address.includes(',') ? address.split(',').slice(1).join(',').trim() : 'Cleveland, OH';
+  
+  // ATTOM property detail endpoint
+  const url = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/property/detail?address1=${encodeURIComponent(addr1)}&address2=${encodeURIComponent(addr2)}`;
+  
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 
+      'apikey': attomKey, 
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (!res.ok) {
+    const errText = await res.text().catch(()=>'');
+    throw new Error(`ATTOM error ${res.status}: ${errText.substring(0,100)}`);
+  }
+  const d = await res.json();
+  if (!d.property || d.property.length === 0) {
+    throw new Error(`Property not found in ATTOM — try full address with city and state`);
+  }
+  const p = d.property[0];
+  
+  // Also try to get expanded sale history
+  try {
+    const attomId = p.identifier?.attomId || p.identifier?.Id;
+    if (attomId) {
+      const salesUrl = `https://api.gateway.attomdata.com/propertyapi/v1.0.0/saleshistory/detail?id=${attomId}`;
+      const salesRes = await fetch(salesUrl, {
+        headers: { 'apikey': attomKey, 'Accept': 'application/json' }
+      });
+      if (salesRes.ok) {
+        const salesData = await salesRes.json();
+        if (salesData.property?.[0]?.salehistory) {
+          p._saleHistory = salesData.property[0].salehistory.slice(0,3);
+        }
+      }
+    }
+  } catch(e) { /* sales history optional */ }
+  
+  return p;
+}
+
+function mapAttomToS(p, address) {
+  // ATTOM API v1 correct field mappings
+  const id       = p.identifier  || {};
+  const addr     = p.address     || {};
+  const bldg     = p.building    || {};
+  const rooms    = bldg.rooms    || {};
+  const size     = bldg.size     || {};
+  const interior = bldg.interior || {};
+  const lot      = p.lot         || {};
+  const summary  = p.summary     || {};
+  const assess   = p.assessment  || {};
+  const tax      = assess.tax    || {};
+  const mkt      = assess.market || {};
+  const assd     = assess.assessed || {};
+  const owner    = p.owner       || {};
+  const o1       = owner.owner1  || {};
+  const o2       = owner.owner2  || {};
+  const util     = p.utilities   || {};
+  const area     = p.area        || {};
+  const vintage  = p.vintage     || {};
+  const sale     = p.sale        || {};
+  const saleAmt  = sale.amount   || {};
+
+  // Owner — ATTOM uses fullName or lastName/firstName
+  const o1Name = o1.fullName || [o1.lastName, o1.firstName].filter(Boolean).join(', ') || '';
+  const o2Name = o2.fullName || [o2.lastName, o2.firstName].filter(Boolean).join(', ') || '';
+  const ownerName = [o1Name, o2Name].filter(Boolean).join(' & ') || 'See MyPlace';
+
+  // Building
+  const beds     = rooms.beds      || rooms.bedsCount  || 0;
+  const baths    = rooms.bathsFull || rooms.bathsTotal  || rooms.bathstotal || 0;
+  const sqft     = size.livingSize || size.livingsize   || size.universalSize || size.grossSize || 0;
+  const lotSqft  = lot.lotSize2    || lot.lotsize2      || Math.round((lot.lotSize1 || lot.lotsize1 || 0) * 43560);
+  const yearBuilt= summary.yearBuilt || summary.yearbuilt || vintage.yearBuilt || 0;
+  const stories  = bldg.stories    || summary.stories   || 1;
+  const garage   = bldg.parking?.garageType || bldg.parking?.prkgType || 'None';
+  const bsmtSize = interior.bsmtSize || interior.bsmtsize || 0;
+  const roof     = bldg.construction?.roofCover || bldg.construction?.roofcover || '';
+  const frameType= bldg.construction?.frameType || bldg.construction?.frameCodedesc || 'Frame';
+  const heatType = util.heatingType || util.heatingtype || '';
+  const coolType = util.coolingType || util.coolingtype || 'None';
+  const waterType= util.waterType   || util.watertype   || 'Public';
+  const sewerType= util.sewerType   || util.sewertype   || 'Public';
+
+  // Tax & Assessment
+  const annualTax= tax.taxAmt      || tax.taxamt        || 0;
+  const taxYear  = tax.taxYear     || tax.taxyear       || 2024;
+  const mktVal   = mkt.mktTtlValue || mkt.mkttTtlValue  || (assd.assdTtlValue ? assd.assdTtlValue / 0.35 : 0);
+  const assdVal  = assd.assdTtlValue || assd.assdttlvalue || Math.round(mktVal * 0.35);
+
+  // Identifiers
+  const apn      = id.apn          || id.apnOrig        || '';
+  const propType = summary.propType || summary.proptype  || summary.propLandUse || 'Single Family';
+  const propStyle= summary.archStyle|| summary.archstyle || propType;
+  const landUse  = summary.propLandUse || area.countyUse1 || '';
+  const zoning   = summary.zoningType  || summary.zoningtype || '';
+
+  // Sale history — use expanded history if available, otherwise last sale
+  const saleHistory = [];
+  if (p._saleHistory && p._saleHistory.length > 0) {
+    p._saleHistory.forEach(s => {
+      const amt = s.amount || {};
+      saleHistory.push({
+        date:    s.saleTransDate || s.salesSearchDate || '',
+        price:   amt.saleAmt    || 0,
+        type:    s.saleDocType  || 'Warranty Deed',
+        grantor: s.sellerV2     || s.sellerName || '—',
+        grantee: s.buyerV2      || s.buyerName  || ownerName,
+        instrument: 'WD'
+      });
+    });
+  } else if (sale && (saleAmt.saleAmt || sale.saleTransDate || sale.salesSearchDate)) {
+    saleHistory.push({
+      date:    sale.saleTransDate || sale.salesSearchDate || sale.salesearchdate || '',
+      price:   saleAmt.saleAmt   || saleAmt.saleamt      || 0,
+      type:    sale.saleDocType  || sale.saledoctype      || 'Warranty Deed',
+      grantor: sale.sellerV2     || sale.sellerName       || sale.sellername || '—',
+      grantee: sale.buyerV2      || sale.buyerName        || sale.buyername  || ownerName,
+      instrument: 'WD'
+    });
+  }
+
+  return {
+    address,
+    parcelId: apn,
+    neighborhood: area.subdname || area.munname || '',
+    municipality: addr.locality || 'Cleveland',
+    propertyType: propType,
+    style: style || 'Single Family',
+    bedBath: `${beds}/${baths}`,
+    sqft: sqft,
+    lotSqft: lotSqft,
+    yearBuilt: yearBuilt,
+    stories: bldg.stories || 1,
+    rooms: rooms.roomsTotal || 0,
+    garage: bldg.parking?.garageType || bldg.parking?.prkgType || 'None',
+    basement: (bldg.interior?.bsmtsize || 0) > 0,
+    heat: util.heatingtype || 'See MyPlace',
+    cooling: util.coolingtype || 'None',
+    roof: bldg.construction?.roofcover || '',
+    construction: bldg.construction?.frameType || 'Frame',
+    floodZone: 'X',
+    vacancyFlag: false,
+    condition: 'Fair',
+    landUseCode: summary.countyUseCode || '',
+    landUseDesc: landUse,
+    zoningCode: zoning,
+    zoningUse: zoning,
+    propertyClass: 'R',
+    water: water,
+    sewer: sewer,
+    gas: 'Yes',
+    electricity: 'Yes',
+    roadType: 'Paved',
+    taxAbatement: 'None',
+    neighborhoodCode: area.taxcodearea || '',
+    owner: {
+      name: ownerName,
+      mailingAddress: addr.oneLine || '',
+      ownerOccupied: false,
+      ownerType: 'Individual',
+      yearsOwned: 0
+    },
+    taxData: {
+      auditorMarketValue: Math.round(mktVal),
+      auditorLandValue: Math.round(mktVal * 0.18),
+      auditorImprovementValue: Math.round(mktVal * 0.82),
+      assessedValue: Math.round(assdVal),
+      taxYear: taxYear,
+      millageRate: mktVal > 0 ? parseFloat((annualTax / (mktVal * 0.35) * 1000).toFixed(2)) : 0,
+      grossTaxBeforeCredits: Math.round(annualTax * 1.08 * 100) / 100,
+      creditAmount: Math.round(annualTax * 0.08 * 100) / 100,
+      annualTaxesBaseOnly: annualTax,
+      taxRate: mktVal > 0 ? parseFloat((annualTax / mktVal * 100).toFixed(3)) : 0,
+      taxDistrict: area.taxcodearea || 'See MyPlace',
+      schoolDistrict: 'See MyPlace',
+      countyTaxPortion: Math.round(annualTax * 0.222),
+      cityTaxPortion: Math.round(annualTax * 0.201),
+      schoolTaxPortion: Math.round(annualTax * 0.404),
+      otherTaxPortion: Math.round(annualTax * 0.173),
+      firstHalfDue: Math.round(annualTax / 2 * 100) / 100,
+      secondHalfDue: Math.round(annualTax / 2 * 100) / 100,
+      firstHalfDueDate: 'Feb 2026',
+      secondHalfDueDate: 'Jul 2026',
+      lastPaymentDate: 'Verify on MyPlace',
+      lastPaymentAmount: 0,
+      paymentStatus: 'Verify delinquency on MyPlace',
+      homesteadExemption: false,
+      ownerOccupiedCredit: false,
+      cauv: false,
+      tbra: false,
+      delinquentTaxes: 0,
+      delinquentYears: [],
+      delinquentPenalties: 0,
+      delinquentInterest: 0,
+      delinquentTotal: 0,
+      annualTaxesWithDelinquent: annualTax,
+      specialAssessments: 0,
+      specialAssessmentDetail: 'None',
+      nemisPending: false,
+      taxLienFiled: false,
+      forfeited: false,
+      certifiedForForfeiture: false,
+      priorYearTaxesClean: true,
+      taxNotes: 'Verify delinquency at myplace.cuyahogacounty.gov — Taxes By Year'
+    },
+    saleHistory: saleHistory,
+    permits: [],
+    estimatedRepairs: 6000,
+    marketRentMonthly: 850,
+    redFlags: ['✅ ATTOM data loaded — verify delinquency &amp; permits at myplace.cuyahogacounty.gov before making offer'],
+    dealScore: 'Marginal',
+    dealNote: 'ATTOM data loaded — check deal math and verify delinquency on MyPlace.',
+    comps: []
+  };
+}
+
+async function fetchAnalysis(address) {
+  // Lean prompt — county data comes from MyPlace paste box
+  // AI only provides: deal score, market rent, comps, estimated repairs, neighborhood
+  // Step 1: Pull live property data from ATTOM
+  let data;
+  if (attomKey) {
+    try {
+      const attomProp = await fetchAttom(address);
+      data = mapAttomToS(attomProp, address);
+    } catch(attomErr) {
+      console.warn('ATTOM failed:', attomErr.message, '— falling back to AI estimates');
+      data = null;
+    }
+  }
+
+  // Step 2: Call Claude Haiku for deal score, market rent, comps, estimated repairs
+  const baseData = data ? JSON.stringify({
+    address: data.address,
+    neighborhood: data.neighborhood,
+    municipality: data.municipality,
+    propertyType: data.propertyType,
+    bedBath: data.bedBath,
+    sqft: data.sqft,
+    yearBuilt: data.yearBuilt,
+    annualTax: data.taxData.annualTaxesBaseOnly,
+    mktVal: data.taxData.auditorMarketValue
+  }) : `{"address":"${address}"}`;
+
+  const prompt = `Cleveland OH sub-$50K real estate deal. Property: ${baseData}
+Return JSON only: {"dealScore":"Buy","dealNote":"one sentence","marketRentMonthly":875,"estimatedRepairs":6000,"condition":"Fair","comps":[{"address":"nearby","soldDate":"2024-10-01","price":38000,"sqft":1050,"bed":3,"bath":1,"dom":30},{"address":"nearby","soldDate":"2024-07-15","price":42000,"sqft":1100,"bed":3,"bath":1,"dom":25},{"address":"nearby","soldDate":"2025-01-10","price":35000,"sqft":950,"bed":2,"bath":1,"dom":45}]}
+dealScore=Strong Buy/Buy/Marginal/Pass. marketRentMonthly=realistic for this Cleveland neighborhood. 3 real recent comps.`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error?.message || `API error ${res.status}`);
+  }
+  const d = await res.json();
+  const txt = d.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  const cleaned = txt.replace(/```json/gi,'').replace(/```/g,'').trim();
+  const si = cleaned.indexOf('{'), ei = cleaned.lastIndexOf('}');
+  let aiData = {};
+  if (si !== -1 && ei !== -1) {
+    try { aiData = JSON.parse(cleaned.slice(si, ei+1)); } catch(e) {}
+  }
+
+  // Merge: ATTOM data + AI deal score/comps
+  if (data) {
+    data.dealScore = aiData.dealScore || 'Marginal';
+    data.dealNote = aiData.dealNote || 'Verify all details before proceeding.';
+    data.marketRentMonthly = aiData.marketRentMonthly || 850;
+    data.estimatedRepairs = aiData.estimatedRepairs || 6000;
+    data.condition = aiData.condition || 'Fair';
+    data.comps = aiData.comps || [];
+    return data;
+  }
+
+  // No ATTOM — return AI-only fallback
+  return {
+    address, parcelId:'', neighborhood:'', municipality:'Cleveland',
+    propertyType:'Single Family', style:'', bedBath:'?/?', sqft:0, lotSqft:0,
+    yearBuilt:0, stories:1, rooms:0, garage:'None', basement:true,
+    heat:'', cooling:'None', roof:'', construction:'Frame', floodZone:'X',
+    vacancyFlag:false, condition: aiData.condition||'Fair',
+    landUseCode:'', landUseDesc:'', zoningCode:'', zoningUse:'',
+    propertyClass:'R', water:'Public', sewer:'Public', gas:'Yes',
+    electricity:'Yes', roadType:'Paved', taxAbatement:'None', neighborhoodCode:'',
+    owner:{name:'Enter in panel below',mailingAddress:'',ownerOccupied:false,ownerType:'Individual',yearsOwned:0},
+    taxData:{auditorMarketValue:0,auditorLandValue:0,auditorImprovementValue:0,
+      assessedValue:0,taxYear:2024,millageRate:0,grossTaxBeforeCredits:0,
+      creditAmount:0,annualTaxesBaseOnly:0,taxRate:0,taxDistrict:'See MyPlace',
+      schoolDistrict:'See MyPlace',countyTaxPortion:0,cityTaxPortion:0,
+      schoolTaxPortion:0,otherTaxPortion:0,firstHalfDue:0,secondHalfDue:0,
+      firstHalfDueDate:'Feb 2026',secondHalfDueDate:'Jul 2026',
+      lastPaymentDate:'',lastPaymentAmount:0,paymentStatus:'See MyPlace',
+      homesteadExemption:false,ownerOccupiedCredit:false,cauv:false,tbra:false,
+      delinquentTaxes:0,delinquentYears:[],delinquentPenalties:0,
+      delinquentInterest:0,delinquentTotal:0,annualTaxesWithDelinquent:0,
+      specialAssessments:0,specialAssessmentDetail:'None',nemisPending:false,
+      taxLienFiled:false,forfeited:false,certifiedForForfeiture:false,
+      priorYearTaxesClean:true,taxNotes:'Enter county data in panel above'},
+    saleHistory:[], permits:[],
+    estimatedRepairs: aiData.estimatedRepairs||6000,
+    marketRentMonthly: aiData.marketRentMonthly||850,
+    redFlags:['Enter county data in panel above — ATTOM key not set'],
+    dealScore: aiData.dealScore||'Marginal',
+    dealNote: aiData.dealNote||'Add ATTOM key for automatic county data.',
+    comps: aiData.comps||[]
+  };
+}
+
+// ── Analyze ────────────────────────────────────────────────────────────
+async function analyze() {
+  const addr = document.getElementById('addrIn').value.trim();
+  if (!addr) return;
+  if (!apiKey) { alert('Enter your Anthropic API key first.'); return; }
+  document.getElementById('goBtn').disabled = true;
+  document.getElementById('out').innerHTML = `
+<div class="loading">
+  <div class="loading-top"><div class="spin"></div><span style="color:var(--acc);font-weight:500">Analyzing ${addr}</span></div>
+  <div class="step act">→ ${attomKey ? 'Pulling live data from ATTOM...' : 'Running AI analysis...'}</div>
+  <div class="step">○ Running deal analysis with Claude...</div>
+  <div class="step">○ Calculating deal math to the cent...</div>
+</div>`;
+  try {
+    const data = await fetchAnalysis(addr);
+    S = data;
+    S.offer = S.offer || 25000;
+    S.pmRate = S.pmRate || 12;
+    S.pmTerm = S.pmTerm || 5;
+    S.lcDown = S.lcDown || 3000;
+    S.lcRate = S.lcRate || 10;
+    S.lcAmort = S.lcAmort || 30;
+    render();
+    applyCountyToS();
+    // Apply any county panel data already entered — county panel always wins over AI estimates
+    updateCounty();
+  } catch(e) {
+    // Even on error, show a helpful message with the county panel visible
+    document.getElementById('out').innerHTML = `<div class="err-box">
+⚠ ${e.message}<br><br>
+<strong>What to do:</strong><br>
+· Use the County Data panel above — enter the address in MyPlace, fill in the fields, and all deal math will calculate automatically<br>
+· Or try again — occasional timeouts happen<br>
+· Check API credits at console.anthropic.com if it keeps failing</div>`;
+  }
+  document.getElementById('goBtn').disabled = false;
+}
+
+// ── Render ─────────────────────────────────────────────────────────────
+function render() {
+  const s = S, t = s.taxData;
+  const offer = s.offer || 25000;
+  const pmPrin = offer + RESERVE;
+  const pmPmt = pmtCalc(pmPrin, s.pmRate, s.pmTerm);
+  const totalPMPaid = pmPmt * s.pmTerm * 12;
+  const totalPMInt = totalPMPaid - pmPrin;
+  const taxMo = t.annualTaxesBaseOnly / 12;
+  const targetLC = pmPmt + 100;
+  const lc20 = loanFromPmt(targetLC, s.lcRate, 20, s.lcDown);
+  const lc25 = loanFromPmt(targetLC, s.lcRate, 25, s.lcDown);
+  const lc30 = loanFromPmt(targetLC, s.lcRate, 30, s.lcDown);
+  const selLC = s.lcAmort === 20 ? lc20 : s.lcAmort === 25 ? lc25 : lc30;
+  const cf5 = targetLC - pmPmt - SERVICING; // Buyer pays taxes+insurance per LC; only expense is servicing fee
+  const cfPost = targetLC - SERVICING; // After PM paid off, only expense is servicing fee
+  const hasD = t.delinquentTotal > 0;
+  const vc = s.dealScore === 'Strong Buy' || s.dealScore === 'Buy' ? 'go' : s.dealScore === 'Marginal' ? 'maybe' : 'pass';
+  const vcE = s.dealScore === 'Strong Buy' ? '🟢' : s.dealScore === 'Buy' ? '✅' : s.dealScore === 'Marginal' ? '🟡' : '🔴';
+  const rentOK = targetLC < s.marketRentMonthly;
+
+  // ── LENDER RETURNS ──────────────────────────────────────────────────
+  // From lender's perspective: they put in pmPrin, get back totalPMPaid
+  const lenderTotalReturn = totalPMPaid;
+  const lenderProfit = totalPMInt;
+  const lenderCoC = (lenderProfit / pmPrin) * 100; // total return on capital
+  const lenderAnnualCoC = lenderCoC / s.pmTerm; // annualized
+  const lenderAnnualYield = (pmPmt * 12 / pmPrin) * 100; // annual yield on loan
+
+  // MyPlace links
+  const mpG = mpURL(s.parcelId, 'general', s.address);
+  const mpT = mpURL(s.parcelId, 'taxes', s.address);
+  const mpTr = mpURL(s.parcelId, 'transfers', s.address);
+  const mpB = mpURL(s.parcelId, 'building', s.address);
+  const mpP = mpURL(s.parcelId, 'permits', s.address);
+
+  const rfHtml = s.redFlags?.length && s.redFlags[0]
+    ? `<div style="font-size:12px;color:var(--red);font-family:var(--mono);line-height:1.9;padding:6px 0">${s.redFlags.map(f => `⚠️ ${f}`).join('<br>')}</div>` : '';
+
+  const salRows = (s.saleHistory || []).map(h => `
+    <div class="row">
+      <span class="rk">📅 ${fmtd(h.date)} · ${h.type}${h.instrument ? ' (' + h.instrument + ')' : ''}<br>
+        <span style="font-size:10px;color:var(--t3)">${h.grantor || '—'} → ${h.grantee || '—'}</span>
+      </span>
+      <span class="rv">${h.price > 0 ? c0(h.price) : '$0 — non-arms length'}</span>
+    </div>`).join('');
+
+  const permRows = (s.permits || []).length
+    ? (s.permits || []).map(p => `
+    <div class="row">
+      <span class="rk">🔨 ${p.type || 'Permit'}<br>
+        <span style="font-size:10px;color:var(--t3)">${fmtd(p.date)} · ${p.status || ''} · ${p.description || ''}</span>
+      </span>
+      <span class="rv">${p.amount ? c0(p.amount) : '—'}</span>
+    </div>`).join('')
+    : '<div class="row"><span class="rk">No permits on record</span><span class="rv">—</span></div>';
+
+  const compRows = (s.comps || []).map(co => `
+    <div class="row">
+      <span class="rk">🏠 ${co.address}<br>
+        <span style="font-size:10px;color:var(--t3)">${co.bed}bd/${co.bath}ba · ${(co.sqft || 0).toLocaleString()} sqft · ${fmtd(co.soldDate)} · ${co.dom}d on mkt</span>
+      </span>
+      <span class="rv">${c0(co.price)}</span>
+    </div>`).join('');
+
+  const lcTableRows = [{l:lc20,y:20},{l:lc25,y:25},{l:lc30,y:30}].map(({l,y}) =>
+    `<tr ${y === s.lcAmort ? 'style="background:var(--s2)"' : ''}>
+      <td>${y}yr${y === s.lcAmort ? ' ★' : ''}</td>
+      <td class=r>${c(l.price)}</td><td class=r>${c(l.loan)}</td>
+      <td class="r pos">${c(s.lcDown)}</td>
+      <td class="r pos">${c(targetLC)}/mo</td>
+      <td class=r>${c(l.total)}</td>
+    </tr>`).join('');
+
+  const retRows = [{l:lc20,y:20},{l:lc25,y:25},{l:lc30,y:30}].map(({l,y}) => {
+    const net = l.total - totalPMPaid;
+    return `<tr ${y === s.lcAmort ? 'style="background:var(--s2)"' : ''}>
+      <td>${y}yr${y === s.lcAmort ? ' ★' : ''}</td>
+      <td class=r>${c(l.total)}</td>
+      <td class="r neg">${c(totalPMPaid)}</td>
+      <td class="r pos">${c(net)}</td>
+      <td class="${cf5 >= 0 ? 'r pos' : 'r neg'}">${sgn(cf5 * s.pmTerm * 12)}</td>
+      <td class="r pos">+${c(cfPost * (y - s.pmTerm) * 12)}</td>
+    </tr>`;}).join('');
+
+  const buyerRows = [{l:lc20,y:20},{l:lc25,y:25},{l:lc30,y:30}].map(({l,y}) => {
+    const rent = s.marketRentMonthly * y * 12;
+    const diff = rent - l.total;
+    return `<tr ${y === s.lcAmort ? 'style="background:var(--s2)"' : ''}>
+      <td>${y}yr${y === s.lcAmort ? ' ★' : ''}</td>
+      <td class=r>${c(s.lcDown)}</td>
+      <td class=r>${c(targetLC * y * 12)}</td>
+      <td class=r>${c(l.total)}</td>
+      <td class="${diff >= 0 ? 'r pos' : 'r neg'}">${diff >= 0 ? 'saves ' : 'costs '}${c(Math.abs(diff))}</td>
+    </tr>`;}).join('');
+
+  document.getElementById('out').innerHTML = `
+
+<!-- VERDICT -->
+<div class="verdict ${vc}"><div class="vdot ${vc}"></div>${vcE} ${s.dealScore} — ${s.dealNote}</div>
+${rfHtml}
+
+<!-- SNAPSHOT TILES -->
+<div class="slbl">🏠 Property snapshot</div>
+<div class="g4">
+  <div class="tile"><div class="ico">🎯</div><div class="lbl">Working offer</div><div class="val">${c0(offer)}</div><div class="sub">Adjust below</div></div>
+  <div class="tile"><div class="ico">🏦</div><div class="lbl">PM loan total</div><div class="val">${c0(pmPrin)}</div><div class="sub">Offer + $5K reserve</div></div>
+  <div class="tile"><div class="ico">🏛️</div><div class="lbl">Annual taxes</div><div class="val">${c(t.annualTaxesBaseOnly)}</div><div class="sub">${c(taxMo)}/mo</div></div>
+  <div class="tile ${hasD ? 'neg' : 'pos'}"><div class="ico">${hasD ? '🚨' : '✅'}</div><div class="lbl">Delinquent</div><div class="val">${hasD ? c(t.delinquentTotal) : 'Clean'}</div><div class="sub">${hasD ? 'Must clear' : 'No back taxes'}</div></div>
+</div>
+
+<div class="pills">
+  ${['📋 '+s.parcelId,'🏗️ '+s.style,'🛏️ '+s.bedBath,'📐 '+(s.sqft||0).toLocaleString()+' sqft','📅 Built '+s.yearBuilt,'🌱 '+(s.lotSqft||0).toLocaleString()+' sqft lot','🚗 '+(s.garage||'None'),'🌊 Zone '+s.floodZone,s.vacancyFlag?'🔒 Vacant':'👤 Occupied','🔧 '+s.condition].map(p=>`<span class="pp">${p}</span>`).join('')}
+</div>
+
+<!-- MYPLACE LINKS -->
+<div class="card">
+  <div class="card-hdr"><h3>🔗 Cuyahoga County records — MyPlace</h3></div>
+  <div style="background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:12px 14px;margin-bottom:12px">
+    <div style="font-size:11px;color:var(--t2);margin-bottom:8px;font-family:var(--mono)">📋 Copy this address and paste it into MyPlace to pull live tax, delinquency, permits & transfers:</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div style="flex:1;background:var(--bg);border:1px solid var(--b1);border-radius:6px;padding:8px 12px;font-family:var(--mono);font-size:13px;color:var(--acc)">${s.address}</div>
+      <button onclick="navigator.clipboard.writeText('${s.address.replace(/'/g,"\'")}').then(()=>{this.textContent='✓ Copied!';setTimeout(()=>this.textContent='📋 Copy address',2000)}).catch(()=>prompt('Copy:','${s.address.replace(/'/g,"\'")}'))" class="act-btn" style="white-space:nowrap;color:var(--acc);border-color:var(--acc)">📋 Copy address</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+    <a href="https://myplace.cuyahogacounty.gov/" target="_blank" class="act-btn" style="background:var(--gbg);border-color:var(--gbr);color:var(--green);font-weight:600">🏛️ Open MyPlace ↗</a>
+    ${(()=>{const raw=(s.parcelId||'').replace(/-/g,'').trim();const ok=(raw.length===8||raw.length===9)&&!isNaN(raw);return ok?`<a href="${mpG}" target="_blank" class="act-btn">🏠 General</a><a href="${mpT}" target="_blank" class="act-btn">💰 Taxes</a><a href="${mpTr}" target="_blank" class="act-btn">📜 Transfers</a><a href="${mpB}" target="_blank" class="act-btn">🏗️ Building</a><a href="${mpP}" target="_blank" class="act-btn">🔨 Permits</a>`:''})()}
+  </div>
+  <div style="font-size:10px;color:var(--t3);font-family:var(--mono);line-height:1.7">
+    On MyPlace: paste address → press search → click your property → use left menu to navigate sections.<br>
+    ${(()=>{const raw=(s.parcelId||'').replace(/-/g,'').trim();const ok=(raw.length===8||raw.length===9)&&!isNaN(raw);return ok?'<span style="color:var(--green)">✓ Real parcel ID confirmed — direct section links active above</span>':'<span style="color:var(--amber)">⚠ Parcel ID not confirmed from county — use address search above for accurate records</span>';})()}
+  </div>
+</div>
+
+<!-- TAX CARD -->
+<div class="card">
+  <div class="card-hdr">
+    <h3>🏛️ Tax analysis <span class="tag ta">Cuyahoga County</span>${hasD ? '<span class="tag tr">⚠️ Delinquent</span>' : ''}</h3>
+    <a href="${mpT}" target="_blank">Live taxes &amp; delinquency ↗</a>
+  </div>
+  <div style="background:var(--abg);border:1px solid var(--abr);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--amber);font-family:var(--mono)">⚠️ Always verify delinquency &amp; payment status at <a href="https://myplace.cuyahogacounty.gov/" target="_blank" style="color:var(--acc)">myplace.cuyahogacounty.gov</a> — GIS does not expose this data</div>
+  ${hasD
+    ? `<div class="alert-r">🚨 <strong>DELINQUENT — must be cleared at or before closing</strong><br>
+        Years: ${t.delinquentYears.join(', ')} &nbsp;|&nbsp; Taxes: ${c(t.delinquentTaxes)} &nbsp;|&nbsp; Penalties: ${c(t.delinquentPenalties)} &nbsp;|&nbsp; Interest: ${c(t.delinquentInterest)}<br>
+        <strong>Total to clear: ${c(t.delinquentTotal)}</strong></div>`
+    : `<div class="alert-g">✅ No delinquent taxes — record is clean &nbsp;·&nbsp; Last pmt: ${t.lastPaymentDate || 'current'}</div>`}
+  <div class="slbl" style="margin-top:10px">📊 Valuation</div>
+  ${[['🏠 Auditor market value',c(t.auditorMarketValue)],['🌱 Land value',c(t.auditorLandValue)],['🏗️ Improvement value',c(t.auditorImprovementValue)],['📋 Assessed value (35%)',c(t.assessedValue)],['📅 Tax year',t.taxYear]].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+  <div class="slbl" style="margin-top:10px">🧾 Billing</div>
+  ${[['🏙️ Tax district',t.taxDistrict],['🎓 School district',t.schoolDistrict],['⚙️ Millage rate',t.millageRate+' mills'],['💳 Gross before credits',c(t.grossTaxBeforeCredits)],['➖ Credits applied','−'+c(t.creditAmount)],['💵 Net annual tax','<strong>'+c(t.annualTaxesBaseOnly)+'</strong>'],['📆 Monthly',c(taxMo)+'/mo'],['📈 Effective rate',Number(t.taxRate).toFixed(3)+'%']].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+  <div class="slbl" style="margin-top:10px">🍕 By recipient</div>
+  ${[['🏛️ County',c(t.countyTaxPortion)+'/yr'],['🏙️ City',c(t.cityTaxPortion)+'/yr'],['🎓 School',c(t.schoolTaxPortion)+'/yr'],['📚 Other',c(t.otherTaxPortion)+'/yr']].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+  <div class="slbl" style="margin-top:10px">📅 Payment schedule</div>
+  ${[['1️⃣ 1st half due',c(t.firstHalfDue)+' — '+t.firstHalfDueDate],['2️⃣ 2nd half due',c(t.secondHalfDue)+' — '+t.secondHalfDueDate],['🚦 Status',`<span class="${t.paymentStatus==='Current'?'pos':'neg'}">${t.paymentStatus==='Current'?'✅ Current':'🔴 '+t.paymentStatus}</span>`]].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+  <div class="slbl" style="margin-top:10px">🎁 Exemptions & legal</div>
+  ${[['🏡 Homestead',t.homesteadExemption?'✅ Yes':'❌ No'],['👤 Owner-occupied credit',t.ownerOccupiedCredit?'✅ Yes':'❌ No'],['🏗️ TBRA / abatement',t.tbra?'✅ Active':'❌ None'],['⚡ Special assessments',t.specialAssessments>0?'💰 '+c(t.specialAssessments)+' — '+t.specialAssessmentDetail:'✅ None'],['🔗 Tax lien',t.taxLienFiled?'<span class="neg">🚨 YES</span>':'✅ No'],['⚠️ Forfeited',t.forfeited?'<span class="neg">🚨 YES</span>':'✅ No'],['⏰ Cert for forfeiture',t.certifiedForForfeiture?'<span class="warn">🟡 YES</span>':'✅ No'],['📋 NEMIS pending',t.nemisPending?'<span class="neg">🚨 YES</span>':'✅ No']].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+  ${t.taxNotes ? `<div class="row"><span class="rk">📝 Notes</span><span class="rv warn">${t.taxNotes}</span></div>` : ''}
+  ${hasD ? `<div class="slbl" style="margin-top:10px">🚨 Delinquency breakdown</div>
+  ${[['📅 Years delinquent',t.delinquentYears.join(', ')],['💸 Back taxes',c(t.delinquentTaxes)],['💢 Penalties',c(t.delinquentPenalties)],['📈 Interest',c(t.delinquentInterest)],['🧾 Total to clear','<strong>'+c(t.delinquentTotal)+'</strong>']].map(([k,v])=>`<div class="row"><span class="rk ${k.includes('Total')?'':'neg'}">${k}</span><span class="rv neg">${v}</span></div>`).join('')}
+  <div class="div"></div>
+  <div class="row"><span class="rk">✅ Base taxes going forward</span><span class="rv pos">${c(t.annualTaxesBaseOnly)}/yr &nbsp;·&nbsp; ${c(taxMo)}/mo</span></div>` : ''}
+</div>
+
+<!-- PROPERTY DETAILS -->
+<div class="card">
+  <div class="card-hdr"><h3>🏗️ Property details — land use & zoning</h3><a href="${mpB}" target="_blank">Building info ↗</a></div>
+  <div class="g2">
+    <div>
+      ${[['🏠 Style',s.style],['🛏️ Bed/Bath · Sqft',s.bedBath+' · '+(s.sqft||0).toLocaleString()+' sqft'],['🚪 Rooms · Stories',(s.rooms||'—')+' rooms · '+s.stories],['🌱 Lot · Year built',(s.lotSqft||0).toLocaleString()+' sqft · '+s.yearBuilt],['🚗 Garage · Basement',(s.garage||'None')+' · '+(s.basement?'✅ Yes':'❌ No')],['🌡️ Heat · Cooling',s.heat+' · '+s.cooling],['🏠 Roof · Construction',s.roof+' · '+s.construction]].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+    </div>
+    <div>
+      ${[['📋 Land use code',s.landUseCode||'—'],['📋 Land use desc',s.landUseDesc||'—'],['📐 Zoning code',s.zoningCode||'—'],['🏘️ Zoning use',s.zoningUse||'—'],['🏢 Property class',s.propertyClass||'—'],['💧 Water · Sewer',(s.water||'—')+' · '+(s.sewer||'—')],['⚡ Gas · Electric',(s.gas||'—')+' · '+(s.electricity||'—')],['🛣️ Road type',s.roadType||'—'],['🏷️ Tax abatement',s.taxAbatement||'None'],['🌊 Flood zone','Zone '+s.floodZone],['🔧 Condition',s.condition]].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+    </div>
+  </div>
+</div>
+
+<!-- OWNER -->
+<div class="card">
+  <div class="card-hdr"><h3>👤 Owner info</h3><a href="${mpG}" target="_blank">MyPlace ↗</a></div>
+  ${[['🏢 Owner',s.owner.name],['📋 Type',s.owner.ownerType],['📬 Mailing address',s.owner.mailingAddress],['🏠 Owner-occupied',s.owner.ownerOccupied?'✅ Yes':'🔴 No — absentee'],['📅 Years owned',s.owner.yearsOwned+' yr'+(s.owner.yearsOwned!==1?'s':'')]].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+</div>
+
+<!-- TRANSFERS -->
+<div class="card">
+  <div class="card-hdr"><h3>📜 Full transfer history</h3><a href="${mpTr}" target="_blank">View on MyPlace ↗</a></div>
+  ${salRows || '<div class="row"><span class="rk">No transfers found</span><span class="rv">—</span></div>'}
+</div>
+
+<!-- PERMITS -->
+<div class="card">
+  <div class="card-hdr"><h3>🔨 Permits on record</h3><a href="${mpP}" target="_blank">View on MyPlace ↗</a></div>
+  ${permRows}
+</div>
+
+<!-- DEAL STRUCTURE -->
+<div class="slbl">💼 Deal structure <span class="tag tg">Buy side</span> <span class="tag ts">+$5,000 reserve always included</span></div>
+
+<div class="card">
+  <div class="card-hdr"><h3>🏦 Private money loan — adjust with sliders or type directly</h3></div>
+  <div class="info-box">💰 <strong>$5,000.00 reserve</strong> added to every PM loan — covers lost buyer payments, locksmith, winterization, insurance gaps & misc holding costs.</div>
+  <div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-bottom:8px">💡 Drag slider or click the number and type — press Enter or click away to apply</div>
+  <div class="adj"><label>🎯 Offer price ($)</label><input type="range" id="slOffer" min="5000" max="75000" step="500" value="${offer}"><input type="number" id="inOffer" min="1000" max="500000" step="500" value="${offer}"></div>
+  <div class="adj"><label>📈 PM interest rate (%)</label><input type="range" id="slPmR" min="8" max="15" step="0.5" value="${s.pmRate}"><input type="number" id="inPmR" min="0" max="100" step="0.000001" value="${s.pmRate}"></div>
+  <div class="adj"><label>📅 PM term (years)</label><input type="range" id="slPmT" min="3" max="8" step="1" value="${s.pmTerm}"><input type="number" id="inPmT" min="1" max="30" step="1" value="${s.pmTerm}"></div>
+  <div class="div"></div>
+  ${[['🎯 Purchase offer',c(offer)],['💰 Reserve fund','+ '+c(RESERVE)],['🏦 Total PM loan',c(pmPrin)],['📆 Monthly payment (P+I)','<strong class="neg">−'+c(pmPmt)+'/mo</strong>'],['💸 Total paid over '+s.pmTerm+'yr',c(totalPMPaid)],['📈 Total interest to lender',c(totalPMInt)]].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+  ${amTable(pmPrin, s.pmRate, s.pmTerm, '🏦 Private money loan — your cost to lender')}
+</div>
+
+<!-- PRIVATE MONEY LENDER RETURNS -->
+<div class="card">
+  <div class="card-hdr"><h3>💵 Private money lender — cash-on-cash return</h3></div>
+  <div class="info-box">From your <strong>lender's perspective</strong> — they put in ${c(pmPrin)} and here's what they get back over the ${s.pmTerm}-year term.</div>
+  <div class="g3" style="margin-bottom:12px">
+    <div class="lender-tile"><div class="lbl">Capital invested</div><div class="val">${c(pmPrin)}</div><div class="sub">One-time lend</div></div>
+    <div class="lender-tile"><div class="lbl">Total interest earned</div><div class="val">${c(lenderProfit)}</div><div class="sub">Over ${s.pmTerm} years</div></div>
+    <div class="lender-tile"><div class="lbl">Monthly income</div><div class="val">${c(pmPmt)}</div><div class="sub">Guaranteed P+I</div></div>
+  </div>
+  <div class="g3" style="margin-bottom:12px">
+    <div class="lender-tile"><div class="lbl">Total cash-on-cash</div><div class="val">${pct(lenderCoC)}</div><div class="sub">Total return on capital</div></div>
+    <div class="lender-tile"><div class="lbl">Annualized CoC</div><div class="val">${pct(lenderAnnualCoC)}</div><div class="sub">Per year average</div></div>
+    <div class="lender-tile"><div class="lbl">Annual yield on loan</div><div class="val">${pct(lenderAnnualYield)}</div><div class="sub">Effective annual return</div></div>
+  </div>
+  ${[['💰 Capital in (lender)',c(pmPrin)],['💵 Monthly payment received',c(pmPmt)+'/mo'],['💸 Total received over '+s.pmTerm+'yr',c(lenderTotalReturn)],['📈 Total profit (interest)',c(lenderProfit)],['📊 Total cash-on-cash return',pct(lenderCoC)],['📅 Annualized cash-on-cash',pct(lenderAnnualCoC)+'/yr'],['🎯 Effective annual yield',pct(lenderAnnualYield)+'/yr'],['🔒 Security',s.address+' — you hold the note']].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv ${k.includes('profit')||k.includes('return')||k.includes('yield')||k.includes('cash')?'warn':''}">${v}</span></div>`).join('')}
+</div>
+
+<!-- MONTHLY OBLIGATION -->
+<div class="card">
+  <div class="card-hdr"><h3>💳 Monthly obligation breakdown — to the cent</h3></div>
+  ${(()=>{
+    const ins=insEst(pmPrin);
+    const buyerTotalLow=targetLC+taxMo+ins.low;
+    const buyerTotalHigh=targetLC+taxMo+ins.high;
+    return [
+      ['🏦 PM payment to lender','<span class="neg">−'+c(pmPmt)+'/mo</span>'],
+      ['🔧 Loan servicing fee','<span class="neg">−'+c(SERVICING)+'/mo</span>'],
+      ['💳 Total your monthly out','<strong class="neg">−'+c(pmPmt+SERVICING)+'/mo</strong>'],
+    ].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('');
+  })()}
+  <div class="div"></div>
+  ${(()=>{
+    const ins=insEst(pmPrin);
+    const buyerTotalLow=targetLC+taxMo+ins.low;
+    const buyerTotalHigh=targetLC+taxMo+ins.high;
+    return [
+      ['📥 LC payment (P+I) from buyer','<strong class="pos">+'+c(targetLC)+'/mo</strong>'],
+      ['💚 Your spread before servicing','<span class="pos">+'+c(100)+'/mo</span>'],
+      ['🔧 Servicing fee','<span class="neg">−'+c(SERVICING)+'/mo</span>'],
+      ['💵 <strong>Net cashflow yrs 1–'+s.pmTerm+'</strong>','<span class="'+(cf5>=0?'pos':'neg')+'"><strong>'+sgn(cf5)+'/mo</strong></span>'],
+      ['🚀 <strong>Net cashflow yr '+(s.pmTerm+1)+'+ (PM paid off)</strong>','<span class="pos"><strong>+'+c(cfPost)+'/mo</strong></span>'],
+    ].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('');
+  })()}
+  <div class="div"></div>
+  <div style="background:var(--bbg);border:1px solid var(--bbr);border-radius:8px;padding:12px 14px;margin-top:4px">
+    <div style="font-size:11px;color:var(--blue);font-family:var(--mono);font-weight:500;margin-bottom:8px">📋 Estimated total buyer monthly obligation</div>
+    ${(()=>{
+      const ins=insEst(pmPrin);
+      const buyerTotalLow=targetLC+taxMo+ins.low;
+      const buyerTotalHigh=targetLC+taxMo+ins.high;
+      return [
+        ['📝 P+I (land contract payment)','<span class="pos">'+c(targetLC)+'/mo</span>'],
+        ['🏛️ Property taxes (current annual: '+c(t.annualTaxesBaseOnly)+'/yr)','<span style="color:var(--blue)">'+c(taxMo)+'/mo</span>'],
+        ['🏠 Insurance estimate (cash value on '+c(pmPrin)+' loan)','<span style="color:var(--blue)">'+c(ins.low)+' – '+c(ins.high)+'/mo</span>'],
+        ['📊 <strong>Estimated total buyer payment</strong>','<strong style="color:var(--blue)">'+c(buyerTotalLow)+' – '+c(buyerTotalHigh)+'/mo</strong>'],
+      ].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('');
+    })()}
+    <div style="font-size:10px;color:var(--t3);margin-top:8px;font-family:var(--mono)">Insurance estimate based on 1.2%–1.8% annual rate of ${c(pmPrin)} cash-value policy. Taxes based on current county annual bill. Buyer pays all three per land contract terms.</div>
+  </div>
+</div>
+
+<!-- RENT CHECK -->
+<div class="card">
+  <div class="card-hdr"><h3>🏘️ Market rent check — ${s.neighborhood}</h3></div>
+  ${[['🏘️ Market rent for this area',c(s.marketRentMonthly)+'/mo'],['📥 Buyer\'s LC payment',c(targetLC)+'/mo'],[rentOK?'✅ Under market rent by':'⚠️ Over market rent by','<span class="'+(rentOK?'pos':'neg')+'">'+c(Math.abs(s.marketRentMonthly-targetLC))+'/mo '+(rentOK?'cheaper':'higher')+'</span>'],['🔑 Buyer advantage','Homeownership · No bank · '+c(s.lcDown)+' down · Builds equity']].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+</div>
+
+<!-- LAND CONTRACT -->
+<div class="slbl">🤝 Exit strategy <span class="tag tb">Sell side — land contract</span></div>
+<div class="card">
+  <div class="card-hdr"><h3>📝 Owner financing — payment backs into price</h3></div>
+  <div style="font-size:10px;color:var(--t3);font-family:var(--mono);margin-bottom:8px">💡 Drag slider or click the number and type — press Enter or click away to apply</div>
+  <div class="adj"><label>💵 Down payment ($)</label><input type="range" id="slLcD" min="2000" max="5000" step="500" value="${s.lcDown}"><input type="number" id="inLcD" min="0" max="50000" step="500" value="${s.lcDown}"></div>
+  <div class="adj"><label>📈 Buyer rate (%)</label><input type="range" id="slLcR" min="8" max="14" step="0.5" value="${s.lcRate}"><input type="number" id="inLcR" min="0" max="100" step="0.000001" value="${s.lcRate}"></div>
+  <div class="adj"><label>📅 LC term (years)</label><input type="range" id="slLcA" min="20" max="30" step="5" value="${s.lcAmort}"><input type="number" id="inLcA" min="1" max="50" step="1" value="${s.lcAmort}"></div>
+  <div class="div"></div>
+  ${[['📆 Buyer monthly (P+I)','<strong class="pos">+'+c(targetLC)+'/mo</strong>'],['📤 Your PM payment','<span class="neg">−'+c(pmPmt)+'/mo</span>'],['💚 Your spread locked in','<span class="pos">+'+c(100)+'/mo always</span>']].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+  <div class="div"></div>
+  <div class="am-wrap"><table class="am-table">
+    <thead><tr><th>Term</th><th class=r>LC sale price</th><th class=r>Loan</th><th class=r>Down</th><th class=r>Buyer pmt</th><th class=r>Buyer total</th></tr></thead>
+    <tbody>${lcTableRows}</tbody>
+  </table></div>
+  ${amTable(selLC.loan, s.lcRate, s.lcAmort, `📝 Land contract ${s.lcAmort}yr — buyer pays you`)}
+</div>
+
+<!-- YOUR RETURNS -->
+<div class="slbl">📊 Your returns</div>
+<div class="g3">
+  <div class="tile ${cf5>=0?'pos':'neg'}"><div class="ico">${cf5>=0?'💚':'🔴'}</div><div class="lbl">Net cashflow yrs 1–${s.pmTerm}</div><div class="val">${sgn(cf5)}</div><div class="sub">after $65 servicing fee</div></div>
+  <div class="tile pos"><div class="ico">🚀</div><div class="lbl">Net cashflow yr ${s.pmTerm+1}+</div><div class="val">+${c(cfPost)}</div><div class="sub">after $65 servicing fee</div></div>
+  <div class="tile pos"><div class="ico">💰</div><div class="lbl">Your spread</div><div class="val">+${c(100-SERVICING)}</div><div class="sub">net after servicing</div></div>
+</div>
+
+<div class="card" style="margin-top:12px">
+  <div class="card-hdr"><h3>📈 Your cash-on-cash returns — all 3 terms</h3></div>
+  <div class="am-wrap"><table class="am-table">
+    <thead><tr><th>Term</th><th class=r>Total LC in</th><th class=r>Total PM out</th><th class=r>Net profit</th><th class=r>Yrs 1–${s.pmTerm} CF</th><th class=r>Post-PM CF</th></tr></thead>
+    <tbody>${retRows}</tbody>
+  </table></div>
+</div>
+
+<div class="card">
+  <div class="card-hdr"><h3>👤 Buyer's total cost vs renting</h3></div>
+  <div class="am-wrap"><table class="am-table">
+    <thead><tr><th>Term</th><th class=r>Down</th><th class=r>Total pmts</th><th class=r>Total cost</th><th class=r>vs renting same period</th></tr></thead>
+    <tbody>${buyerRows}</tbody>
+  </table></div>
+  <div style="font-size:11px;color:var(--t3);margin-top:8px;font-family:var(--mono)">💡 Buyer pays ${c(targetLC)}/mo vs ${c(s.marketRentMonthly)}/mo rent — AND builds equity — AND owns free & clear at payoff.</div>
+</div>
+
+<div class="card">
+  <div class="card-hdr"><h3>🚀 Power of year ${s.pmTerm+1}+ — PM paid off</h3></div>
+  ${[['📥 LC payment from buyer (P+I)','<span class="pos">+'+c(targetLC)+'/mo</span>'],['📤 PM loan paid off','<span class="pos">$0.00/mo ✅</span>'],['🔧 Servicing fee','<span class="neg">−'+c(SERVICING)+'/mo</span>'],['🏛️ Taxes & insurance','<span class="pos">$0.00 — buyer pays</span>'],['🚀 <strong>Net free cashflow</strong>','<strong class="pos">+'+c(cfPost)+'/mo</strong>']].map(([k,v])=>`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('')}
+  <div class="div"></div>
+  <div class="g3" style="margin-top:4px">
+    ${[20,25,30].map(y=>`<div class="tile pos"><div class="lbl">${y}yr deal (${y-s.pmTerm} post-PM yrs)</div><div class="val">${c(cfPost*(y-s.pmTerm)*12)}</div><div class="sub">net after servicing</div></div>`).join('')}
+  </div>
+</div>
+
+<!-- COMPS -->
+<div class="card">
+  <div class="card-hdr"><h3>🔍 Comparable sales</h3></div>
+  ${compRows || '<div class="row"><span class="rk">No comps found</span><span class="rv">—</span></div>'}
+</div>
+
+<!-- ACTION BUTTONS -->
+<div class="act-row">
+  <button class="act-btn" onclick="copyPrompt('pm')">📋 Copy PM lender pitch</button>
+  <button class="act-btn" onclick="copyPrompt('lc')">📝 Copy LC term sheet</button>
+  <button class="act-btn" onclick="copyPrompt('risk')">⚠️ Copy risk analysis</button>
+  <button id="pdfBtn" class="act-btn" onclick="downloadPDF()" style="background:var(--gbg);border-color:var(--gbr);color:var(--green);font-weight:600">⬇️ Download PDF</button>
+</div>`;
+
+  // Wire sliders
+  wireAdj('slOffer','inOffer','offer');
+  wireAdj('slPmR','inPmR','pmRate');
+  wireAdj('slPmT','inPmT','pmTerm');
+  wireAdj('slLcD','inLcD','lcDown');
+  wireAdj('slLcR','inLcR','lcRate');
+  wireAdj('slLcA','inLcA','lcAmort');
+}
+
+// ── Copy prompts ───────────────────────────────────────────────────────
+function copyPrompt(type) {
+  const s = S, t = s?.taxData; if (!s || !t) return;
+  const offer = s.offer || 25000;
+  const pmPrin = offer + RESERVE;
+  const pmPmt = pmtCalc(pmPrin, s.pmRate, s.pmTerm);
+  const targetLC = pmPmt + 100;
+  const r = s.lcRate / 100 / 12, n = s.lcAmort * 12;
+  const loan = r === 0 ? targetLC * n : targetLC * (1 - Math.pow(1 + r, -n)) / r;
+  const lcPrice = loan + s.lcDown;
+  const totalPMPaid = pmPmt * s.pmTerm * 12;
+  const lenderCoC = ((totalPMPaid - pmPrin) / pmPrin * 100).toFixed(2);
+  const lenderAnnual = ((totalPMPaid - pmPrin) / pmPrin * 100 / s.pmTerm).toFixed(2);
+  const prompts = {
+    pm: `Write a professional private money lender pitch for ${s.address}.\n\nLoan amount: ${c(pmPrin)} (purchase ${c(offer)} + $5,000 reserve)\nTerms: ${s.pmRate}% fully amortized, ${s.pmTerm}-year term\nMonthly payment to lender: ${c(pmPmt)}\nTotal paid over term: ${c(totalPMPaid)}\nTotal interest earned: ${c(totalPMPaid - pmPrin)}\nLender cash-on-cash return: ${lenderCoC}% total / ${lenderAnnual}% annualized\nExit strategy: owner-financed land contract\n\nMake it compelling for a private lender seeking safe, passive income secured by real estate.`,
+    lc: `Draft a land contract term sheet for ${s.address}.\n\nSale price: ${c(lcPrice)}\nDown payment: ${c(s.lcDown)} collected at signing\nLoan amount: ${c(loan)}\nBuyer interest rate: ${s.lcRate}%\nAmortization: ${s.lcAmort} years fully amortized\nMonthly buyer payment: ${c(targetLC)}\nBuyer pays all property taxes and insurance\nSeller retains legal title until paid in full`,
+    risk: `Full risk analysis for ${s.address}.\n\nOffer: ${c(offer)} | PM loan: ${c(pmPrin)} at ${s.pmRate}% fully amortized ${s.pmTerm}yr, payment ${c(pmPmt)}/mo\nTaxes: ${c(t.annualTaxesBaseOnly)}/yr | Delinquent: ${c(t.delinquentTotal)}\nRepairs: ${c(s.estimatedRepairs || 5000)} | Market rent: ${c(s.marketRentMonthly)}/mo\nBuyer payment: ${c(targetLC)}/mo\nRed flags: ${(s.redFlags || []).join('; ') || 'None'}\n\nProvide a detailed risk analysis including exit scenarios, neighborhood risk, and recommendations.`
+  };
+  navigator.clipboard.writeText(prompts[type])
+    .then(() => alert('✓ Copied! Paste into a new Claude chat.'))
+    .catch(() => prompt('Copy this prompt:', prompts[type]));
+}
+
+document.getElementById('addrIn').addEventListener('keydown', e => { if (e.key === 'Enter') analyze(); });
+loadKey();
+</script>
+</body>
+</html>
